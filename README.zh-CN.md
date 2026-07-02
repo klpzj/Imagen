@@ -87,6 +87,12 @@ npm run dev
 http://localhost:5173
 ```
 
+也可以直接启动后端、前端和 FRP：
+
+```powershell
+.\start-frp-webui.bat
+```
+
 WebUI 会通过 Vite 代理访问后端接口：
 
 - `/api/health`
@@ -204,6 +210,12 @@ npm run dev
 
 ```powershell
 .\frpc.exe -c .\frpc.toml
+```
+
+一键启动：
+
+```powershell
+.\start-frp-webui.bat
 ```
 
 远程访问：

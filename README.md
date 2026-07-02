@@ -116,6 +116,12 @@ Start frpc in terminal 3:
 .\frpc.exe -c .\frpc.toml
 ```
 
+Or start backend, frontend, and frpc together:
+
+```powershell
+.\start-frp-webui.bat
+```
+
 Open:
 
 ```text

@@ -11,4 +11,5 @@ outputs/
 webui/dist/
 webui/node_modules/
 .edge-profile/
+.run/
 *.log
