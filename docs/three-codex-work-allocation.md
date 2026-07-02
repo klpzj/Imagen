@@ -76,7 +76,7 @@ Deliverables:
 - Backend startup command works:
 
 ```powershell
-python -m uvicorn backend.app:app --reload --port 8000
+python -m uvicorn backend.app:app --reload --port 18000
 ```
 
 Acceptance checks:
@@ -175,7 +175,7 @@ Deliverables:
 
 Acceptance checks:
 
-- Backend starts on `http://localhost:8000`.
+- Backend starts on `http://localhost:18000`.
 - Frontend starts on `http://localhost:5173`.
 - Real generation succeeds through WebUI using the configured base URL.
 - `outputs/manifest.json` contains the generated record.
@@ -346,7 +346,7 @@ or production deployment.
 Before finishing, run:
 
 - python -m py_compile backend/app.py backend/config.py backend/schemas.py backend/image_service.py backend/image_store.py
-- python -m uvicorn backend.app:app --port 8000 if practical
+- python -m uvicorn backend.app:app --port 18000 if practical
 
 Final response must include changed files, how to start the backend, and test
 results.
@@ -372,7 +372,8 @@ Scope:
   HistoryGallery, ErrorToast, API client, image store, shared types, and base
   CSS.
 - Call GET /api/config, GET /api/images, and POST /api/generate.
-- Use VITE_API_BASE or http://localhost:8000 as API base.
+- Use relative `/api` and `/outputs` paths by default. Vite proxies them to
+  `http://localhost:18000`.
 - Make the first screen the actual tool workspace.
 
 Do not implement edit, upload, mask drawing, delete, auth entry, queue, or
@@ -402,7 +403,7 @@ these files first:
 
 Scope:
 
-- Start or verify backend on http://localhost:8000.
+- Start or verify backend on http://localhost:18000.
 - Start or verify frontend on http://localhost:5173.
 - Confirm GET /api/config does not expose API key, base URL, or raw auth.json.
 - Confirm POST /api/generate works through the backend.

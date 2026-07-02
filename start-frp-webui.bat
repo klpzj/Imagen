@@ -2,7 +2,7 @@
 setlocal
 
 set "ROOT=%~dp0"
-set "BACKEND_PORT=8000"
+set "BACKEND_PORT=18000"
 set "FRONTEND_PORT=5173"
 set "PUBLIC_URL=http://39.106.96.49:15173"
 
@@ -45,6 +45,7 @@ if not exist "%ROOT%webui\node_modules" (
 echo [Imagen] Backend:  http://127.0.0.1:%BACKEND_PORT%
 echo [Imagen] Frontend: http://127.0.0.1:%FRONTEND_PORT%
 echo [Imagen] Public:   %PUBLIC_URL%
+echo [Imagen] Mode:     single window
 echo.
 
 set "RUN_DIR=%ROOT%.run"
@@ -59,7 +60,7 @@ if not exist "%RUN_DIR%" mkdir "%RUN_DIR%"
 (
   echo @echo off
   echo cd /d "%ROOT%webui"
-  echo npm run dev -- --host 127.0.0.1 --port %FRONTEND_PORT%
+  echo npm run dev -- --host 127.0.0.1 --port %FRONTEND_PORT% --strictPort
 ) > "%RUN_DIR%\frontend.bat"
 
 (
@@ -68,17 +69,21 @@ if not exist "%RUN_DIR%" mkdir "%RUN_DIR%"
   echo frpc.exe -c frpc.toml
 ) > "%RUN_DIR%\frpc.bat"
 
-start "Imagen Backend" cmd /k ""%RUN_DIR%\backend.bat""
+start "Imagen Backend" /b cmd /c call "%RUN_DIR%\backend.bat"
 timeout /t 2 /nobreak >nul
 
-start "Imagen Frontend" cmd /k ""%RUN_DIR%\frontend.bat""
+start "Imagen Frontend" /b cmd /c call "%RUN_DIR%\frontend.bat"
 timeout /t 2 /nobreak >nul
 
-start "Imagen FRP" cmd /k ""%RUN_DIR%\frpc.bat""
+start "Imagen FRP" /b cmd /c call "%RUN_DIR%\frpc.bat"
 
 echo [Imagen] Started all processes.
-echo [Imagen] Keep the three new command windows open while using the service.
+echo [Imagen] Keep this command window open while using the service.
+echo [Imagen] Press Ctrl+C to stop the grouped process window.
 echo [Imagen] Local:  http://127.0.0.1:%FRONTEND_PORT%
 echo [Imagen] Public: %PUBLIC_URL%
 echo.
-pause
+
+:keepalive
+timeout /t 3600 /nobreak >nul
+goto keepalive

@@ -176,8 +176,11 @@ Responsibilities:
 Development backend URL:
 
 ```ts
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 ```
+
+When `API_BASE` is empty, frontend calls use relative `/api` and `/outputs`
+paths. The Vite dev server proxies them to `http://localhost:18000`.
 
 ## `api/imageApi.ts`
 

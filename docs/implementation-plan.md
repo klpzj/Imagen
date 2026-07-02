@@ -132,7 +132,7 @@ Acceptance:
 Backend:
 
 ```powershell
-python -m uvicorn backend.app:app --reload --port 8000
+python -m uvicorn backend.app:app --reload --port 18000
 ```
 
 Frontend:

@@ -71,7 +71,7 @@ npm install
 终端 1：启动后端。
 
 ```powershell
-python -m uvicorn backend.app:app --reload --port 8000
+python -m uvicorn backend.app:app --reload --port 18000
 ```
 
 终端 2：启动前端。
@@ -87,11 +87,13 @@ npm run dev
 http://localhost:5173
 ```
 
-也可以直接启动后端、前端和 FRP：
+也可以直接在一个命令行窗口里集合启动后端、前端和 FRP：
 
 ```powershell
 .\start-frp-webui.bat
 ```
+
+一键脚本默认使用后端端口 `18000`，用于避开 Windows 上 `8000` 端口可能出现的套接字权限错误。
 
 WebUI 会通过 Vite 代理访问后端接口：
 
@@ -200,7 +202,7 @@ remotePort = 15173
 启动顺序：
 
 ```powershell
-python -m uvicorn backend.app:app --reload --port 8000
+python -m uvicorn backend.app:app --reload --port 18000
 ```
 
 ```powershell
@@ -242,7 +244,7 @@ npm run build
 健康检查：
 
 ```powershell
-Invoke-RestMethod -Uri http://localhost:8000/api/health -Method Get
+Invoke-RestMethod -Uri http://localhost:18000/api/health -Method Get
 ```
 
 V1 已完成一次真实链路验证，记录见：

@@ -7,12 +7,13 @@ This document is the contract between the FastAPI backend and Vue frontend.
 Development:
 
 ```text
-Backend: http://localhost:8000
+Backend: http://localhost:18000
 Frontend: http://localhost:5173
 ```
 
-Frontend requests should use `VITE_API_BASE` when provided and otherwise default
-to `http://localhost:8000`.
+Frontend requests use relative `/api` and `/outputs` paths by default. In local
+development, the Vite dev server proxies those paths to
+`http://localhost:18000`.
 
 ## `GET /api/health`
 

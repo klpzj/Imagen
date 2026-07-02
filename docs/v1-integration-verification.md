@@ -14,12 +14,12 @@ served PNG file.
 ```powershell
 python -m py_compile backend\app.py backend\config.py backend\schemas.py backend\image_service.py backend\image_store.py gpt_image_client.py
 npm run build
-Invoke-RestMethod -Uri http://localhost:8000/api/health -Method Get -TimeoutSec 5
+Invoke-RestMethod -Uri http://localhost:18000/api/health -Method Get -TimeoutSec 5
 Invoke-WebRequest -Uri http://localhost:5173 -Method Get -UseBasicParsing -TimeoutSec 5
-Invoke-RestMethod -Uri http://localhost:8000/api/config -Method Get -TimeoutSec 5
-Invoke-RestMethod -Uri http://localhost:8000/api/images -Method Get -TimeoutSec 5
-Invoke-RestMethod -Uri http://localhost:8000/api/generate -Method Post -ContentType application/json -Body <json> -TimeoutSec 120
-Invoke-WebRequest -Uri http://localhost:8000/outputs/v1-final-verification-image-simple-blue-square-i-20260703-001305-1.png -UseBasicParsing -TimeoutSec 10
+Invoke-RestMethod -Uri http://localhost:18000/api/config -Method Get -TimeoutSec 5
+Invoke-RestMethod -Uri http://localhost:18000/api/images -Method Get -TimeoutSec 5
+Invoke-RestMethod -Uri http://localhost:18000/api/generate -Method Post -ContentType application/json -Body <json> -TimeoutSec 120
+Invoke-WebRequest -Uri http://localhost:18000/outputs/v1-final-verification-image-simple-blue-square-i-20260703-001305-1.png -UseBasicParsing -TimeoutSec 10
 Get-Content outputs\manifest.json
 ```
 
@@ -86,7 +86,7 @@ Post-MVP features remain outside V1:
 Backend:
 
 ```powershell
-python -m uvicorn backend.app:app --reload --port 8000
+python -m uvicorn backend.app:app --reload --port 18000
 ```
 
 Frontend:

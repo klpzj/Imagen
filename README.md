@@ -69,7 +69,7 @@ pip install -r requirements.txt
 Start the backend:
 
 ```powershell
-python -m uvicorn backend.app:app --reload --port 8000
+python -m uvicorn backend.app:app --reload --port 18000
 ```
 
 Start the frontend:
@@ -100,7 +100,7 @@ Copy-Item .\frpc.example.toml .\frpc.toml
 Start the backend in terminal 1:
 
 ```powershell
-python -m uvicorn backend.app:app --reload --port 8000
+python -m uvicorn backend.app:app --reload --port 18000
 ```
 
 Start the frontend in terminal 2:
@@ -116,11 +116,14 @@ Start frpc in terminal 3:
 .\frpc.exe -c .\frpc.toml
 ```
 
-Or start backend, frontend, and frpc together:
+Or start backend, frontend, and frpc together in one command window:
 
 ```powershell
 .\start-frp-webui.bat
 ```
+
+The script uses backend port `18000` to avoid Windows socket permission issues
+that can occur on port `8000`.
 
 Open:
 
