@@ -1,0 +1,14 @@
+.env
+auth.json
+frpc.toml
+frpc.exe
+frp-LICENSE
+.frp-download/
+.venv/
+__pycache__/
+*.py[cod]
+outputs/
+webui/dist/
+webui/node_modules/
+.edge-profile/
+*.log

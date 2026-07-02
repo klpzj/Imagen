@@ -1,0 +1,13 @@
+# Copy this file to frpc.toml and fill in your frps server settings.
+serverAddr = "YOUR_FRPS_SERVER_IP_OR_DOMAIN"
+serverPort = 7000
+
+auth.method = "token"
+auth.token = "YOUR_FRPS_TOKEN"
+
+[[proxies]]
+name = "imagen-webui"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 5173
+remotePort = 15173
