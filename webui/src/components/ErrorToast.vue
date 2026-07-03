@@ -28,7 +28,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="error-toast" role="alert" aria-live="assertive">
     <span>{{ props.message }}</span>
-    <button type="button" aria-label="Dismiss error" @click="emit('dismiss')">
+    <button type="button" aria-label="关闭错误提示" @click="emit('dismiss')">
       <X :size="16" aria-hidden="true" />
     </button>
   </div>

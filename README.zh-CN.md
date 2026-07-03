@@ -5,10 +5,11 @@
 - Python 生图封装脚本 `gpt_image_client.py`
 - FastAPI 后端服务
 - Vue 3 + Vite WebUI
-- 本地图片保存与历史记录
+- 本地图片保存、历史记录与删除
+- 生成任务状态持久化，刷新后仍可看到进行中或失败任务
 - 可选 FRP 端口穿透
 
-V1 版本聚焦文本生图、结果预览和历史记录。图片编辑、mask、删除历史、任务队列等能力暂未纳入 V1。
+当前版本聚焦文本生图、图片编辑、结果预览、下载、历史记录和本地开发穿透。
 
 ## 目录结构
 
@@ -18,8 +19,9 @@ imagen/
   auth.json                    # 本地密钥配置，不要提交
   requirements.txt             # Python 依赖
   backend/                     # FastAPI 后端
+  scripts/                     # Windows 生命周期管理脚本
   webui/                       # Vue WebUI
-  outputs/                     # 生成图片和 manifest.json
+  outputs/                     # 生成图片、manifest.json 和 jobs.json
   docs/                        # 设计与验收文档
   frpc.example.toml            # FRP 示例配置
 ```
@@ -41,7 +43,7 @@ imagen/
 {
   "OPENAI_API_KEY": "你的 API Key",
   "OPENAI_BASE_URL": "http://你的-openai-compatible-base-url",
-  "OPENAI_IMAGE_MODEL": "gpt-image-1"
+  "OPENAI_IMAGE_MODEL": "gpt-image-2"
 }
 ```
 
@@ -93,13 +95,21 @@ http://localhost:5173
 .\start-frp-webui.bat
 ```
 
-一键脚本默认使用后端端口 `18000`，用于避开 Windows 上 `8000` 端口可能出现的套接字权限错误。
+停止由一键脚本管理的后端、前端和 FRP：
+
+```powershell
+.\stop-frp-webui.bat
+```
+
+一键脚本默认使用后端端口 `18000`，用于避开 Windows 上 `8000` 端口可能出现的套接字权限错误。脚本会在 `.run/` 下写入日志和进程元数据，并在启动前检查 `18000`、`5173` 端口占用。
 
 WebUI 会通过 Vite 代理访问后端接口：
 
 - `/api/health`
 - `/api/config`
 - `/api/generate`
+- `/api/edit`
+- `/api/jobs`
 - `/api/images`
 - `/outputs/{filename}`
 
@@ -125,7 +135,7 @@ python .\gpt_image_client.py generate `
 
 常用参数：
 
-- `--model`：图片模型，默认 `gpt-image-1`
+- `--model`：图片模型，默认 `gpt-image-2`
 - `--size`：图片尺寸，例如 `1024x1024`
 - `--quality`：质量，支持 `auto`、`low`、`medium`、`high`
 - `--format`：输出格式，支持 `png`、`jpeg`、`webp`
@@ -140,7 +150,13 @@ V1 后端接口：
 GET  /api/health
 GET  /api/config
 POST /api/generate
+POST /api/edit
+POST /api/jobs
+GET  /api/jobs
+GET  /api/jobs/active
+GET  /api/jobs/{job_id}
 GET  /api/images
+DELETE /api/images/{image_id}
 GET  /outputs/{filename}
 ```
 
@@ -150,11 +166,11 @@ GET  /outputs/{filename}
 {
   "prompt": "A simple red apple on a white background",
   "options": {
-    "model": "gpt-image-1",
+    "model": "gpt-image-2",
     "size": "1024x1024",
     "quality": "low",
     "output_format": "png",
-    "background": "auto",
+    "moderation": "none",
     "n": 1
   }
 }
@@ -164,6 +180,12 @@ GET  /outputs/{filename}
 
 ```text
 outputs/manifest.json
+```
+
+任务记录保存在：
+
+```text
+outputs/jobs.json
 ```
 
 生成图片保存在：
@@ -220,6 +242,12 @@ npm run dev
 .\start-frp-webui.bat
 ```
 
+一键停止：
+
+```powershell
+.\stop-frp-webui.bat
+```
+
 远程访问：
 
 ```text
@@ -231,7 +259,7 @@ http://<frps-server>:15173
 后端语法检查：
 
 ```powershell
-python -m py_compile backend\app.py backend\config.py backend\schemas.py backend\image_service.py backend\image_store.py gpt_image_client.py
+python -m py_compile backend\app.py backend\config.py backend\schemas.py backend\image_service.py backend\image_store.py backend\job_store.py gpt_image_client.py
 ```
 
 前端构建：
@@ -264,5 +292,4 @@ V1 已完成一次真实链路验证，记录见：
 
 - 不要提交 `auth.json`。
 - 不要提交 `outputs/` 中的生成图片，除非明确需要样例图。
-- `webui/node_modules/` 和 `webui/dist/` 已加入 `.gitignore`。
-- V1 不包含图片编辑、上传 mask、删除历史、任务队列。
+- `webui/node_modules/`、`webui/dist/`、`.run/` 和运行日志已加入 `.gitignore`。

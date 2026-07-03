@@ -27,7 +27,7 @@ function normalizeBase(base: string): string {
   return base.replace(/\/+$/, "");
 }
 
-async function parseError(response: Response): Promise<ApiError> {
+export async function parseApiError(response: Response): Promise<ApiError> {
   let body: ApiErrorBody | null = null;
 
   try {
@@ -40,7 +40,7 @@ async function parseError(response: Response): Promise<ApiError> {
     return new ApiError(body.detail, response.status);
   }
 
-  const message = body?.detail?.message ?? "The image service returned an error.";
+  const message = body?.detail?.message ?? "图像服务返回错误。";
   return new ApiError(message, response.status, body?.detail?.code);
 }
 
@@ -57,7 +57,7 @@ export async function apiFetch<T>(
   });
 
   if (!response.ok) {
-    throw await parseError(response);
+    throw await parseApiError(response);
   }
 
   if (response.status === 204) {
@@ -73,4 +73,21 @@ export function resolveAssetUrl(url: string): string {
   }
 
   return `${API_BASE}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
+export async function downloadAsset(url: string, filename: string): Promise<void> {
+  const response = await fetch(resolveAssetUrl(url));
+  if (!response.ok) {
+    throw await parseApiError(response);
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
 }

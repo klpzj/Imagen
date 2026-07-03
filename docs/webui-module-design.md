@@ -1,9 +1,9 @@
 # WebUI Module Design
 
 This document describes the planned Vue WebUI for the GPT image generation
-tool. The MVP should be a local single-user workstation app: open the browser,
-enter a prompt, tune a small set of parameters, generate images, preview the
-result, and browse generation history.
+tool. The current target is a local single-user workstation app: open the
+browser, enter a prompt or edit instruction, tune a small set of parameters,
+generate images, preview the result, and browse generation history.
 
 ## Goals
 
@@ -11,18 +11,16 @@ result, and browse generation history.
 - Reuse the existing `gpt_image_client.py` wrapper.
 - Provide a modern image generation workspace instead of a landing page.
 - Persist generated files and metadata under `outputs/`.
-- Keep the first version simple enough to ship quickly, while leaving clear
-  extension points.
+- Keep the implementation simple enough to run locally, while preserving task
+  state across refreshes.
 
 ## Non Goals
 
 - No account system.
 - No multi-user permission model.
 - No remote deployment design in the first version.
-- No image edit workflow in the MVP.
 - No online mask painting in the MVP.
 - No background queue or distributed worker system in the first version.
-- No delete workflow in the MVP.
 
 ## Target Architecture
 
@@ -53,6 +51,7 @@ imagen/
     config.py
     image_service.py
     image_store.py
+    job_store.py
     schemas.py
   webui/
     index.html
@@ -67,6 +66,8 @@ imagen/
       components/
         AppShell.vue
         GeneratePanel.vue
+        EditPanel.vue
+        ModePanel.vue
         ParameterControls.vue
         ImagePreview.vue
         HistoryGallery.vue
@@ -79,6 +80,7 @@ imagen/
         base.css
   outputs/
     manifest.json
+    jobs.json
 ```
 
 ## Module Boundaries
@@ -102,8 +104,8 @@ imagen/
 - Does not know the API key or upstream base URL.
 
 `outputs/`
-- Stores image files and `manifest.json`.
-- Can be managed by future app actions after V1.
+- Stores image files, `manifest.json`, and `jobs.json`.
+- Can be managed by local app actions.
 - Must not be committed to version control.
 
 ## First Version User Flow
@@ -112,11 +114,12 @@ imagen/
 2. Browser opens the Vue app.
 3. App loads `/api/config` and `/api/images`.
 4. User enters prompt and generation parameters.
-5. App posts to `/api/generate`.
-6. Backend calls `GPTImageClient.generate`.
+5. App posts to `/api/jobs` for persisted generation.
+6. Backend runs `GPTImageClient.generate` in a background task.
 7. Generated files are saved under `outputs/`.
 8. Backend records metadata in `outputs/manifest.json`.
-9. App displays the generated image and updates the history gallery.
+9. Backend records task state in `outputs/jobs.json`, including failures.
+10. App displays the generated image and updates the history gallery.
 
 ## UI Layout
 
@@ -127,7 +130,7 @@ Desktop:
 | Top toolbar: app name, model, status                       |
 +------------------+----------------------+-----------------+
 | Left panel       | Main preview         | Right history   |
-| Prompt           | Current image        | Thumbnails      |
+| Mode + prompt    | Current image        | Thumbnails      |
 | Parameters       | Download / reuse     | Metadata        |
 | Generate         | Loading / errors     | Metadata        |
 +------------------+----------------------+-----------------+
@@ -141,10 +144,10 @@ Mobile:
 
 ## Implementation Order
 
-1. Add backend API and manifest storage.
-2. Add minimal Vue shell with generate flow.
-3. Add history gallery and selected image preview.
-4. Polish loading, errors, empty states, and basic responsive layout.
+1. Add backend API, manifest storage, and job storage.
+2. Add Vue shell with generate and edit modes.
+3. Add history gallery, selected image preview, download, and delete.
+4. Polish loading, failures, empty states, resizable panels, and responsive layout.
 
 ## MVP Scope
 
@@ -153,20 +156,27 @@ Included:
 - `GET /api/health`
 - `GET /api/config`
 - `POST /api/generate`
+- `POST /api/edit`
+- `POST /api/jobs`
+- `GET /api/jobs`
+- `GET /api/jobs/active`
+- `GET /api/jobs/{job_id}`
 - `GET /api/images`
+- `DELETE /api/images/{image_id}`
 - Static serving for generated files under `/outputs/`
 - Prompt input
-- Size, quality, format, count, and background controls
+- Generate/edit mode switching
+- Size, quality, format, count, and moderation controls
 - Latest result preview
 - History gallery loaded from `outputs/manifest.json`
+- Job state loaded from `outputs/jobs.json`
 - Download generated image
+- Delete history records
 
 Deferred:
 
-- Image edit and mask upload
-- Delete image/history record
 - Dedicated single-image detail route
 - Canvas mask drawing
-- Queue management
+- Multi-job queue management beyond one active local task
 - User accounts
 - Production deployment

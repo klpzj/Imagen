@@ -2,8 +2,9 @@
 
 [中文说明](README.zh-CN.md)
 
-Small Python wrapper around the OpenAI Image API. It supports text-to-image
-generation, image editing, local file output, and CLI usage.
+Small Python wrapper and local WebUI around the OpenAI Image API. It supports
+text-to-image generation, image editing, local file output, persisted task
+state, history deletion, and CLI usage.
 
 ## Setup
 
@@ -51,7 +52,7 @@ print(results[0].path)
 
 Common options:
 
-- `--model`: image model name, default from `OPENAI_IMAGE_MODEL` or `gpt-image-1`
+- `--model`: image model name, default from `OPENAI_IMAGE_MODEL` or `gpt-image-2`
 - `--size`: image size, for example `1024x1024`
 - `--quality`: `auto`, `low`, `medium`, or `high`
 - `--format`: `png`, `jpeg`, or `webp`
@@ -84,6 +85,19 @@ Open:
 
 ```text
 http://localhost:5173
+```
+
+Or start the backend, frontend, and optional frpc tunnel in one managed command
+window:
+
+```powershell
+.\start-frp-webui.bat
+```
+
+Stop the managed processes:
+
+```powershell
+.\stop-frp-webui.bat
 ```
 
 ## FRP tunnel
@@ -123,7 +137,15 @@ Or start backend, frontend, and frpc together in one command window:
 ```
 
 The script uses backend port `18000` to avoid Windows socket permission issues
-that can occur on port `8000`.
+that can occur on port `8000`. It writes process metadata and logs under
+`.run/`, prechecks ports `18000` and `5173`, and keeps the backend, frontend,
+and frpc in one lifecycle group.
+
+Stop the managed backend, frontend, and frpc processes:
+
+```powershell
+.\stop-frp-webui.bat
+```
 
 Open:
 

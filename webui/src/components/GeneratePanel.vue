@@ -16,12 +16,12 @@ const options = ref<ImageOptions>({
   size: "1024x1024",
   quality: "auto",
   output_format: "png",
-  background: "auto",
+  moderation: "none",
   n: 1
 });
 
 const canGenerate = computed(
-  () => prompt.value.trim().length > 0 && !imageStore.isGenerating
+  () => prompt.value.trim().length > 0 && !imageStore.isBusy
 );
 
 watch(
@@ -42,9 +42,9 @@ watch(
       output_format: config.formats.includes(options.value.output_format)
         ? options.value.output_format
         : config.formats[0],
-      background: config.backgrounds.includes(options.value.background ?? "")
-        ? options.value.background
-        : config.backgrounds[0],
+      moderation: config.moderations.includes(options.value.moderation)
+        ? options.value.moderation
+        : "none",
       n: clampCount(options.value.n, config.max_n)
     };
   },
@@ -58,6 +58,22 @@ watch(
       prompt.value = request.prompt;
     }
   }
+);
+
+watch(
+  () => imageStore.activeJob,
+  (job) => {
+    if (!job || !imageStore.isGenerating) {
+      return;
+    }
+
+    prompt.value = job.prompt;
+    options.value = {
+      ...options.value,
+      ...job.options
+    } as ImageOptions;
+  },
+  { immediate: true }
 );
 
 function clampCount(value: number, max: number): number {
@@ -82,46 +98,37 @@ function clearPrompt() {
 </script>
 
 <template>
-  <section aria-labelledby="generate-title">
-    <div class="panel-header">
-      <div>
-        <h2 id="generate-title">Generate</h2>
-        <p>Prompt and output settings</p>
-      </div>
-    </div>
-
-    <form class="generate-form" @submit.prevent="submit">
-      <label class="field">
-        <span>Prompt</span>
-        <textarea
-          v-model="prompt"
-          rows="9"
-          placeholder="A clean product render of a white ceramic mug on a walnut desk"
-          :disabled="imageStore.isGenerating"
-        />
-      </label>
-
-      <ParameterControls
-        v-model="options"
-        :config="imageStore.config"
-        :disabled="imageStore.isGenerating"
+  <form class="mode-form" @submit.prevent="submit">
+    <label class="field">
+      <span>提示词</span>
+      <textarea
+        v-model="prompt"
+        rows="9"
+        :disabled="imageStore.isBusy"
       />
+    </label>
 
-      <div class="button-row">
-        <button
-          class="button button-secondary"
-          type="button"
-          :disabled="imageStore.isGenerating || prompt.length === 0"
-          @click="clearPrompt"
-        >
-          <Eraser :size="16" aria-hidden="true" />
-          <span>Clear</span>
-        </button>
-        <button class="button button-primary" type="submit" :disabled="!canGenerate">
-          <Sparkles :size="16" aria-hidden="true" />
-          <span>{{ imageStore.isGenerating ? "Generating" : "Generate" }}</span>
-        </button>
-      </div>
-    </form>
-  </section>
+    <ParameterControls
+      v-model="options"
+      :config="imageStore.config"
+      :disabled="imageStore.isBusy"
+      mode="generate"
+    />
+
+    <div class="button-row">
+      <button
+        class="button button-secondary"
+        type="button"
+        :disabled="imageStore.isBusy || prompt.length === 0"
+        @click="clearPrompt"
+      >
+        <Eraser :size="16" aria-hidden="true" />
+        <span>清空</span>
+      </button>
+      <button class="button button-primary" type="submit" :disabled="!canGenerate">
+        <Sparkles :size="16" aria-hidden="true" />
+        <span>{{ imageStore.isGenerating ? "生成中" : "生成图片" }}</span>
+      </button>
+    </div>
+  </form>
 </template>

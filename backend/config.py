@@ -13,12 +13,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 AUTH_PATH = PROJECT_ROOT / "auth.json"
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 MANIFEST_PATH = OUTPUTS_DIR / "manifest.json"
+JOBS_PATH = OUTPUTS_DIR / "jobs.json"
 
-MODELS = ("gpt-image-1",)
+DEFAULT_MODELS = ("gpt-image-2", "gpt-image-1", "gpt-image-1-mini")
 SIZES = ("1024x1024", "1024x1536", "1536x1024")
 QUALITIES = ("auto", "low", "medium", "high")
 OUTPUT_FORMATS = ("png", "jpeg", "webp")
 BACKGROUNDS = ("auto", "transparent", "opaque")
+MODERATIONS = ("none", "auto", "low")
 MAX_N = 2
 
 
@@ -77,15 +79,45 @@ def get_backend_settings() -> BackendSettings:
     )
 
 
+def _split_csv(value: str | None) -> list[str]:
+    if not value:
+        return []
+
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def get_model_candidates() -> tuple[str, ...]:
+    auth_config = load_auth_config()
+    configured = (
+        _split_csv(auth_config.get("OPENAI_IMAGE_MODELS"))
+        or _split_csv(auth_config.get("IMAGE_MODELS"))
+        or _split_csv(os.getenv("OPENAI_IMAGE_MODELS"))
+    )
+
+    models = configured or list(DEFAULT_MODELS)
+    default_model = (
+        auth_config.get("OPENAI_IMAGE_MODEL")
+        or auth_config.get("IMAGE_MODEL")
+        or os.getenv("OPENAI_IMAGE_MODEL")
+        or DEFAULT_MODEL
+    )
+    if default_model and default_model not in models:
+        models.insert(0, default_model)
+
+    return tuple(dict.fromkeys(models))
+
+
 def get_safe_config() -> dict[str, object]:
     settings = get_backend_settings()
-    default_model = settings.default_model if settings.default_model in MODELS else DEFAULT_MODEL
+    models = get_model_candidates()
+    default_model = settings.default_model if settings.default_model in models else models[0]
     return {
         "default_model": default_model,
-        "models": list(MODELS),
+        "models": list(models),
         "sizes": list(SIZES),
         "qualities": list(QUALITIES),
         "formats": list(OUTPUT_FORMATS),
         "backgrounds": list(BACKGROUNDS),
+        "moderations": list(MODERATIONS),
         "max_n": MAX_N,
     }

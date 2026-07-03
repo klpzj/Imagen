@@ -13,20 +13,18 @@ Responsibilities:
 - Serve files from `outputs/`.
 - Convert unhandled exceptions into readable API errors.
 
-MVP routes:
+Current routes:
 
 ```text
 GET    /api/health
 GET    /api/config
 POST   /api/generate
-GET    /api/images
-```
-
-Post-MVP routes:
-
-```text
 POST   /api/edit
-GET    /api/images/{image_id}
+POST   /api/jobs
+GET    /api/jobs
+GET    /api/jobs/active
+GET    /api/jobs/{job_id}
+GET    /api/images
 DELETE /api/images/{image_id}
 ```
 
@@ -51,18 +49,20 @@ Responsibilities:
   - available sizes
   - quality choices
   - output formats
-  - background choices
+  - moderation choices
+  - legacy background choices
 
 Safe response example:
 
 ```json
 {
-  "default_model": "gpt-image-1",
-  "models": ["gpt-image-1"],
+  "default_model": "gpt-image-2",
+  "models": ["gpt-image-2", "gpt-image-1", "gpt-image-1-mini"],
   "sizes": ["1024x1024", "1024x1536", "1536x1024"],
   "qualities": ["auto", "low", "medium", "high"],
   "formats": ["png", "jpeg", "webp"],
   "backgrounds": ["auto", "transparent", "opaque"],
+  "moderations": ["none", "auto", "low"],
   "max_n": 2
 }
 ```
@@ -86,6 +86,7 @@ class ImageOptions(BaseModel):
     quality: str = "auto"
     output_format: str = "png"
     background: str | None = None
+    moderation: str = "none"
     n: int = 1
 
 class GenerateRequest(BaseModel):
@@ -94,7 +95,7 @@ class GenerateRequest(BaseModel):
 
 class ImageRecord(BaseModel):
     id: str
-    type: Literal["generate"]
+    type: Literal["generate", "edit"]
     filename: str
     url: str
     prompt: str
@@ -102,6 +103,7 @@ class ImageRecord(BaseModel):
     size: str
     quality: str
     format: str
+    moderation: str | None = None
     created_at: str
 
 class GenerateResponse(BaseModel):
@@ -134,11 +136,11 @@ Generated files should remain under:
 outputs/
 ```
 
-Post-MVP edit flow:
+Edit flow:
 
 ```text
 multipart form-data
-  -> save upload to outputs/uploads/
+  -> stage uploads in a temporary outputs/ directory
   -> GPTImageClient.edit
   -> create ImageRecord entries
   -> image_store.add_records
@@ -151,22 +153,16 @@ Responsibilities:
 
 - Read and write `outputs/manifest.json`.
 - Create stable IDs.
-- List and add image records.
-- Keep deletion out of MVP to avoid accidental file loss while the manifest
-  format is still settling.
+- List, add, get, and delete image records.
+- Remove local image files when deleting history records.
 
 Public functions:
 
 ```python
 def list_images() -> list[ImageRecord]: ...
 def add_records(records: list[ImageRecord]) -> list[ImageRecord]: ...
-```
-
-Post-MVP functions:
-
-```python
-def get_image(image_id: str) -> ImageRecord | None: ...
-def delete_image(image_id: str) -> bool: ...
+def get_record(image_id: str) -> ImageRecord | None: ...
+def delete_record(image_id: str) -> list[ImageRecord]: ...
 ```
 
 Write behavior:
@@ -175,6 +171,25 @@ Write behavior:
 - If `manifest.json` does not exist, treat it as an empty list.
 - Write manifest atomically through a temporary file then replace.
 - Sort records newest first for API responses.
+
+## `backend/job_store.py`
+
+Responsibilities:
+
+- Read and write `outputs/jobs.json`.
+- Persist queued, running, succeeded, and failed generation tasks.
+- Keep only the newest bounded set of jobs.
+- Expose the active queued/running task for frontend refresh recovery.
+
+Public functions:
+
+```python
+def create_generation_job(request: GenerateRequest) -> GenerationJob: ...
+def run_generation_job(job_id: str, request: GenerateRequest) -> None: ...
+def list_jobs() -> list[GenerationJob]: ...
+def get_job(job_id: str) -> GenerationJob | None: ...
+def get_active_job() -> GenerationJob | None: ...
+```
 
 ## Error Shape
 
@@ -195,11 +210,9 @@ Common codes:
 - `auth_missing`
 - `upstream_error`
 - `generation_failed`
-
-Post-MVP codes:
-
 - `edit_failed`
 - `image_not_found`
+- `jobs_invalid`
 
 ## Backend Dependencies
 

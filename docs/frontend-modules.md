@@ -17,6 +17,7 @@ open directly into the image generation workspace.
 Responsibilities:
 
 - Load initial config and history.
+- Restore active or recent generation jobs.
 - Own top-level layout.
 - Render `AppShell`.
 - Show global error toast when needed.
@@ -27,6 +28,7 @@ Startup flow:
 onMounted
   -> imageStore.loadConfig()
   -> imageStore.loadHistory()
+  -> imageStore.restoreJobs()
 ```
 
 ## `components/AppShell.vue`
@@ -34,14 +36,16 @@ onMounted
 Responsibilities:
 
 - Provide the three-column desktop layout.
+- Provide resizable left, right, and bottom regions.
 - Provide responsive mobile layout.
 - Place shared toolbar controls.
 
 Main regions:
 
-- Left: `GeneratePanel`.
+- Left: `ModePanel`, `GeneratePanel`, and `EditPanel`.
 - Center: `ImagePreview`.
 - Right: `HistoryGallery`.
+- Bottom: compact job/status strip when needed.
 
 ## `components/GeneratePanel.vue`
 
@@ -52,6 +56,7 @@ Responsibilities:
 - Generate button.
 - Clear prompt action.
 - Disable submit when prompt is empty or request is running.
+- Submit generation as a persisted job so refreshes keep task state.
 
 State used:
 
@@ -61,7 +66,7 @@ State used:
 
 Actions:
 
-- `imageStore.generate(prompt, options)`
+- `imageStore.createGenerationJob(prompt, options)`
 
 Validation:
 
@@ -78,16 +83,15 @@ Responsibilities:
   - size
   - quality
   - output format
+  - moderation
   - image count
-  - background
 - Receive allowed values from backend config.
 - Emit a complete options object.
 
 Control types:
 
-- Select menus for model, size, quality, format.
+- Select menus for model, size, quality, format, and moderation.
 - Stepper or numeric input for count.
-- Segmented control for background.
 
 ## `components/ImagePreview.vue`
 
@@ -97,6 +101,7 @@ Responsibilities:
 - Show empty state when no image exists.
 - Show loading state during generation.
 - Show image metadata.
+- Support dynamic preview sizing and fullscreen preview.
 - Provide actions:
   - download
   - copy prompt
@@ -120,6 +125,8 @@ Responsibilities:
 - Render historical images from the backend.
 - Click thumbnail to select.
 - Show compact metadata.
+- Delete history records.
+- Download image files through the API helper.
 
 Desktop behavior:
 
@@ -130,25 +137,22 @@ Mobile behavior:
 
 - Horizontal thumbnail strip.
 
-## Post-MVP: `components/EditPanel.vue`
+## `components/ModePanel.vue`
+
+Responsibilities:
+
+- Switch between generate and edit workflows.
+- Keep mode switching compact and visible in the left panel.
+
+## `components/EditPanel.vue`
 
 Responsibilities:
 
 - Upload source image.
-- Optional mask upload.
+- Reuse existing history images as edit sources.
 - Edit instruction input.
 - Shared parameter controls.
 - Submit edit request.
-
-## Post-MVP: `components/UploadDropzone.vue`
-
-Responsibilities:
-
-- Handle drag and drop.
-- Handle file picker.
-- Preview selected image.
-- Validate image MIME type.
-- Emit selected `File`.
 
 Allowed MIME types:
 
@@ -190,13 +194,12 @@ Responsibilities:
 export function getConfig(): Promise<AppConfig>
 export function listImages(): Promise<ImageRecord[]>
 export function generateImage(payload: GeneratePayload): Promise<ImageRecord[]>
-```
-
-Post-MVP:
-
-```ts
 export function editImage(payload: EditPayload): Promise<ImageRecord[]>
-export function deleteImage(id: string): Promise<void>
+export function createGenerationJob(payload: GeneratePayload): Promise<GenerationJob>
+export function getGenerationJob(id: string): Promise<GenerationJob>
+export function getActiveGenerationJob(): Promise<GenerationJob | null>
+export function listGenerationJobs(): Promise<GenerationJob[]>
+export function deleteImage(id: string): Promise<ImageRecord[]>
 ```
 
 ## `stores/imageStore.ts`
@@ -209,7 +212,8 @@ State:
 config: AppConfig | null
 images: ImageRecord[]
 selectedImageId: string | null
-isGenerating: boolean
+jobs: GenerationJob[]
+activeJobId: string | null
 error: string | null
 ```
 
@@ -220,6 +224,7 @@ selectedImage
 latestImage
 historyImages
 isBusy
+activeJob
 ```
 
 Actions:
@@ -227,16 +232,13 @@ Actions:
 ```ts
 loadConfig()
 loadHistory()
-generate(prompt, options)
-selectImage(id)
-clearError()
-```
-
-Post-MVP actions:
-
-```ts
+createGenerationJob(prompt, options)
+restoreJobs()
+pollJob(id)
 edit(payload)
 deleteImage(id)
+selectImage(id)
+clearError()
 ```
 
 ## `types/image.ts`
@@ -249,13 +251,13 @@ export interface ImageOptions {
   size: string
   quality: string
   output_format: string
-  background?: string | null
+  moderation: string
   n: number
 }
 
 export interface ImageRecord {
   id: string
-  type: "generate"
+  type: "generate" | "edit"
   filename: string
   url: string
   prompt: string
@@ -263,11 +265,10 @@ export interface ImageRecord {
   size: string
   quality: string
   format: string
+  moderation?: string | null
   created_at: string
 }
 ```
-
-Post-MVP should widen `type` to `"generate" | "edit"` when edit mode is added.
 
 ## Styling
 

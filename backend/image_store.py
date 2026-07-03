@@ -64,6 +64,13 @@ def list_images() -> list[ImageRecord]:
     return _sort_records(_read_manifest())
 
 
+def get_record(record_id: str) -> ImageRecord:
+    record = next((item for item in _read_manifest() if item.id == record_id), None)
+    if record is None:
+        raise AppError("Image record was not found.", "image_not_found", 404)
+    return record
+
+
 def add_records(records: list[ImageRecord]) -> list[ImageRecord]:
     if not records:
         return []
@@ -81,6 +88,23 @@ def add_records(records: list[ImageRecord]) -> list[ImageRecord]:
 
     _write_manifest(existing + normalized)
     return normalized
+
+
+def delete_record(record_id: str) -> list[ImageRecord]:
+    records = _read_manifest()
+    target = next((record for record in records if record.id == record_id), None)
+    if target is None:
+        raise AppError("Image record was not found.", "image_not_found", 404)
+
+    remaining = [record for record in records if record.id != record_id]
+    _write_manifest(remaining)
+
+    target_path = (OUTPUTS_DIR / target.filename).resolve()
+    outputs_root = OUTPUTS_DIR.resolve()
+    if outputs_root in target_path.parents and target_path.is_file():
+        target_path.unlink()
+
+    return list_images()
 
 
 def build_record_id(created_at: datetime, index: int, existing_ids: set[str] | None = None) -> str:

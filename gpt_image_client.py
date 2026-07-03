@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-DEFAULT_MODEL = "gpt-image-1"
+DEFAULT_MODEL = "gpt-image-2"
 DEFAULT_SIZE = "1024x1024"
 DEFAULT_QUALITY = "auto"
 DEFAULT_OUTPUT_FORMAT = "png"
@@ -107,6 +107,7 @@ class GPTImageClient:
         quality: str = DEFAULT_QUALITY,
         output_format: str = DEFAULT_OUTPUT_FORMAT,
         background: str | None = None,
+        moderation: str | None = "none",
     ) -> list[ImageResult]:
         """Generate one or more images from text and save them locally."""
 
@@ -120,6 +121,8 @@ class GPTImageClient:
         }
         if background:
             params["background"] = background
+        if moderation and moderation != "none":
+            params["moderation"] = moderation
         if output_format:
             params["output_format"] = output_format
 
@@ -301,6 +304,11 @@ def _add_common_image_args(
             default=None,
             help="Generation background, e.g. auto, transparent, or opaque.",
         )
+        parser.add_argument(
+            "--moderation",
+            default="none",
+            help="Image moderation strictness, e.g. none, auto, or low.",
+        )
 
 
 def main() -> int:
@@ -324,6 +332,7 @@ def main() -> int:
             quality=args.quality,
             output_format=args.output_format,
             background=args.background,
+            moderation=args.moderation,
         )
     elif args.command == "edit":
         results = client.edit(

@@ -9,6 +9,8 @@ const imageStore = useImageStore();
 onMounted(async () => {
   await imageStore.loadConfig();
   await imageStore.loadHistory();
+  await imageStore.loadJobs();
+  await imageStore.restoreActiveJob();
 });
 </script>
 

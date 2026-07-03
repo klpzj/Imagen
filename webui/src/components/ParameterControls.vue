@@ -2,11 +2,18 @@
 import { computed } from "vue";
 import type { AppConfig, ImageOptions } from "../types/image";
 
-const props = defineProps<{
-  modelValue: ImageOptions;
-  config: AppConfig | null;
-  disabled?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    modelValue: ImageOptions;
+    config: AppConfig | null;
+    disabled?: boolean;
+    mode?: "generate" | "edit";
+  }>(),
+  {
+    disabled: false,
+    mode: "generate"
+  }
+);
 
 const emit = defineEmits<{
   "update:modelValue": [value: ImageOptions];
@@ -16,7 +23,7 @@ const models = computed(() => props.config?.models ?? []);
 const sizes = computed(() => props.config?.sizes ?? []);
 const qualities = computed(() => props.config?.qualities ?? []);
 const formats = computed(() => props.config?.formats ?? []);
-const backgrounds = computed(() => props.config?.backgrounds ?? []);
+const moderations = computed(() => props.config?.moderations ?? []);
 const maxN = computed(() => props.config?.max_n ?? 1);
 
 function update<Key extends keyof ImageOptions>(
@@ -34,14 +41,22 @@ function updateCount(value: string) {
   const n = Math.max(1, Math.min(maxN.value, Number.isNaN(parsed) ? 1 : parsed));
   update("n", n);
 }
+
+function moderationLabel(value: string): string {
+  if (value === "none") {
+    return "无";
+  }
+
+  return value;
+}
 </script>
 
 <template>
   <fieldset class="parameter-grid" :disabled="disabled || !config">
-    <legend>Parameters</legend>
+    <legend>参数</legend>
 
     <label class="field">
-      <span>Model</span>
+      <span>模型</span>
       <select
         :value="modelValue.model"
         @change="update('model', ($event.target as HTMLSelectElement).value)"
@@ -53,7 +68,7 @@ function updateCount(value: string) {
     </label>
 
     <label class="field">
-      <span>Size</span>
+      <span>尺寸</span>
       <select
         :value="modelValue.size"
         @change="update('size', ($event.target as HTMLSelectElement).value)"
@@ -65,7 +80,7 @@ function updateCount(value: string) {
     </label>
 
     <label class="field">
-      <span>Quality</span>
+      <span>质量</span>
       <select
         :value="modelValue.quality"
         @change="update('quality', ($event.target as HTMLSelectElement).value)"
@@ -77,7 +92,7 @@ function updateCount(value: string) {
     </label>
 
     <label class="field">
-      <span>Format</span>
+      <span>格式</span>
       <select
         :value="modelValue.output_format"
         @change="update('output_format', ($event.target as HTMLSelectElement).value)"
@@ -89,7 +104,7 @@ function updateCount(value: string) {
     </label>
 
     <label class="field">
-      <span>Images</span>
+      <span>数量</span>
       <input
         type="number"
         min="1"
@@ -100,20 +115,16 @@ function updateCount(value: string) {
       />
     </label>
 
-    <div class="field field-wide">
-      <span>Background</span>
-      <div class="segmented" role="radiogroup" aria-label="Background">
-        <button
-          v-for="background in backgrounds"
-          :key="background"
-          type="button"
-          :class="{ active: modelValue.background === background }"
-          :disabled="disabled"
-          @click="update('background', background)"
-        >
-          {{ background }}
-        </button>
-      </div>
-    </div>
+    <label v-if="mode === 'generate'" class="field">
+      <span>审查</span>
+      <select
+        :value="modelValue.moderation"
+        @change="update('moderation', ($event.target as HTMLSelectElement).value)"
+      >
+        <option v-for="moderation in moderations" :key="moderation" :value="moderation">
+          {{ moderationLabel(moderation) }}
+        </option>
+      </select>
+    </label>
   </fieldset>
 </template>

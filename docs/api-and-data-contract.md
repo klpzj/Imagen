@@ -33,12 +33,13 @@ Response:
 
 ```json
 {
-  "default_model": "gpt-image-1",
-  "models": ["gpt-image-1"],
+  "default_model": "gpt-image-2",
+  "models": ["gpt-image-2", "gpt-image-1", "gpt-image-1-mini"],
   "sizes": ["1024x1024", "1024x1536", "1536x1024"],
   "qualities": ["auto", "low", "medium", "high"],
   "formats": ["png", "jpeg", "webp"],
   "backgrounds": ["auto", "transparent", "opaque"],
+  "moderations": ["none", "auto", "low"],
   "max_n": 2
 }
 ```
@@ -49,6 +50,9 @@ Must not include:
 - upstream base URL
 - raw `auth.json`
 
+`backgrounds` is currently returned for backend/client compatibility. The
+Vue WebUI does not render background controls.
+
 ## `POST /api/generate`
 
 Request:
@@ -57,11 +61,11 @@ Request:
 {
   "prompt": "A simple red apple on a white background",
   "options": {
-    "model": "gpt-image-1",
+    "model": "gpt-image-2",
     "size": "1024x1024",
     "quality": "low",
     "output_format": "png",
-    "background": "auto",
+    "moderation": "none",
     "n": 1
   }
 }
@@ -78,15 +82,72 @@ Response:
       "filename": "baseurl-test-20260702-233015-1.png",
       "url": "/outputs/baseurl-test-20260702-233015-1.png",
       "prompt": "A simple red apple on a white background",
-      "model": "gpt-image-1",
+      "model": "gpt-image-2",
       "size": "1024x1024",
       "quality": "low",
       "format": "png",
+      "moderation": "none",
       "created_at": "2026-07-02T23:30:15+08:00"
     }
   ]
 }
 ```
+
+## `POST /api/edit`
+
+Request uses `multipart/form-data`:
+
+- `prompt`: edit instruction
+- `images`: uploaded PNG/JPEG/WebP files, optional when `image_ids` is provided
+- `image_ids`: existing history image IDs, optional when files are uploaded
+- `source_order`: optional source ordering values
+- `model`, `size`, `quality`, `output_format`, `n`: image options
+
+Response shape matches `POST /api/generate`, with image records using
+`type: "edit"` and optional `source_image_ids` / `source_filenames`.
+
+## `POST /api/jobs`
+
+Creates a persisted background generation task.
+
+Request shape matches `POST /api/generate`.
+
+Response:
+
+```json
+{
+  "job": {
+    "id": "job-20260702-233015",
+    "status": "queued",
+    "prompt": "A simple red apple on a white background",
+    "options": {
+      "model": "gpt-image-2",
+      "size": "1024x1024",
+      "quality": "low",
+      "output_format": "png",
+      "moderation": "none",
+      "n": 1
+    },
+    "created_at": "2026-07-02T23:30:15+08:00",
+    "updated_at": "2026-07-02T23:30:15+08:00",
+    "images": [],
+    "error": null
+  }
+}
+```
+
+## `GET /api/jobs`
+
+Returns persisted jobs newest first. Failed jobs are retained with
+`status: "failed"` and an `error` message.
+
+## `GET /api/jobs/active`
+
+Returns the newest queued or running job, or `null` when no job is active.
+
+## `GET /api/jobs/{job_id}`
+
+Returns one job by ID, or `null` when not found.
 
 ## `GET /api/images`
 
@@ -103,15 +164,22 @@ Response:
       "filename": "baseurl-test-20260702-233015-1.png",
       "url": "/outputs/baseurl-test-20260702-233015-1.png",
       "prompt": "A simple red apple on a white background",
-      "model": "gpt-image-1",
+      "model": "gpt-image-2",
       "size": "1024x1024",
       "quality": "low",
       "format": "png",
+      "moderation": "none",
       "created_at": "2026-07-02T23:30:15+08:00"
     }
   ]
 }
 ```
+
+## `DELETE /api/images/{image_id}`
+
+Deletes the manifest record and local image file when present.
+
+Response shape matches `GET /api/images`.
 
 ## Manifest Schema
 
@@ -131,10 +199,11 @@ Shape:
     "filename": "baseurl-test-20260702-233015-1.png",
     "url": "/outputs/baseurl-test-20260702-233015-1.png",
     "prompt": "A simple red apple on a white background",
-    "model": "gpt-image-1",
+    "model": "gpt-image-2",
     "size": "1024x1024",
     "quality": "low",
     "format": "png",
+    "moderation": "none",
     "created_at": "2026-07-02T23:30:15+08:00",
     "revised_prompt": null
   }
@@ -144,6 +213,41 @@ Shape:
 Optional fields:
 
 - `revised_prompt`
+- `moderation`
+- `source_image_ids`
+- `source_filenames`
+
+## Job Store Schema
+
+File:
+
+```text
+outputs/jobs.json
+```
+
+Shape:
+
+```json
+[
+  {
+    "id": "job-20260702-233015",
+    "status": "succeeded",
+    "prompt": "A simple red apple on a white background",
+    "options": {
+      "model": "gpt-image-2",
+      "size": "1024x1024",
+      "quality": "low",
+      "output_format": "png",
+      "moderation": "none",
+      "n": 1
+    },
+    "created_at": "2026-07-02T23:30:15+08:00",
+    "updated_at": "2026-07-02T23:30:25+08:00",
+    "images": [],
+    "error": null
+  }
+]
+```
 
 ## Error Contract
 
@@ -160,14 +264,3 @@ Response:
 
 Frontend should display `detail.message`. If the shape is unknown, display a
 generic error.
-
-## Post-MVP API
-
-These endpoints are intentionally outside MVP:
-
-- `POST /api/edit`
-- `GET /api/images/{image_id}`
-- `DELETE /api/images/{image_id}`
-
-Post-MVP edit requests should use `multipart/form-data` with `prompt`, `image`,
-optional `mask`, and the same image options used by generation.

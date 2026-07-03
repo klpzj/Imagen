@@ -17,16 +17,19 @@ Read these documents in order when implementing the Vue WebUI.
 6. [Decision log](decision-log.md)
    - Key architectural decisions and reasons.
 7. [Consistency audit](consistency-audit.md)
-   - Scope drift found during review and the final slim MVP boundary.
+   - Current implementation alignment, remaining compatibility notes, and
+     backlog boundaries.
 8. [Three-Codex work allocation](three-codex-work-allocation.md)
    - Parallel construction split, interface alignment surface, merge order, and
      worker prompts.
 9. [V1 integration verification](v1-integration-verification.md)
    - Final V1 verification commands, results, and generated output path.
 
-Current recommended first implementation target:
+Current implementation target:
 
-- Build the MVP only: text generation, preview, and history.
-- Keep edit, delete, and canvas masking in the Post-MVP backlog.
+- Local WebUI with text generation, image editing, preview, download, history,
+  history deletion, failed task display, and refresh-safe job state.
+- Keep canvas mask painting, multi-job queue management, user accounts, and
+  production deployment in the backlog.
 - If using parallel Codex workers, follow
   [Three-Codex work allocation](three-codex-work-allocation.md).

@@ -1,134 +1,64 @@
 # Documentation Consistency Audit
 
-Date: 2026-07-02
+Date: 2026-07-03
 
 ## Result
 
-The WebUI documents have been aligned around a smaller MVP:
+The WebUI documents now describe the current local tool surface:
 
-- Text-to-image generation.
-- Safe config loading.
-- Generated image preview.
-- Read-only history gallery.
-- Manifest-backed metadata.
-- Static serving for generated files.
+- Text-to-image generation with default model `gpt-image-2`.
+- Image editing from uploads or existing history images.
+- Safe config loading without exposing API keys or upstream base URLs.
+- Generated image preview, fullscreen preview, download, copy, reuse, and open
+  actions.
+- History gallery with deletion.
+- Manifest-backed image metadata in `outputs/manifest.json`.
+- Persisted generation job state in `outputs/jobs.json`, including failed
+  tasks.
+- Managed Windows lifecycle scripts for backend, frontend, and optional FRP.
 
-The following features are now Post-MVP:
-
-- Image editing.
-- Mask upload.
-- Canvas mask drawing.
-- Delete image/history record.
-- Single-image detail route.
-- Job queue and cancellation.
-- Production deployment.
-
-## Issues Found
-
-### Edit Was Both MVP And Deferred
-
-Problem:
-
-- `webui-module-design.md` said the first version should stay simple.
-- `backend-modules.md`, `frontend-modules.md`, `api-and-data-contract.md`, and
-  `implementation-plan.md` included edit routes and edit components in the
-  first build path.
-
-Resolution:
-
-- Removed edit from MVP routes, components, state, API client, and acceptance
-  criteria.
-- Added edit to Post-MVP sections.
-
-### Delete Was In History MVP Without A Stability Gate
-
-Problem:
-
-- History deletion was included before the manifest format had stabilized.
-- This would add file deletion risk to the first version.
-
-Resolution:
-
-- Removed delete from MVP.
-- Kept deletion as a Post-MVP route and store action.
-
-### Route List And API Contract Did Not Match MVP Flow
-
-Problem:
-
-- The flow only required `/api/config`, `/api/generate`, and `/api/images`.
-- The API contract also specified edit, detail, and delete endpoints.
-
-Resolution:
-
-- MVP API now includes:
-  - `GET /api/health`
-  - `GET /api/config`
-  - `POST /api/generate`
-  - `GET /api/images`
-  - `/outputs/{filename}` static files
-- Post-MVP API is listed separately.
-
-### Frontend State Was Wider Than Needed
-
-Problem:
-
-- Store state included `mode`, `isEditing`, edit actions, and delete actions.
-- Components included `EditPanel` and `UploadDropzone`.
-
-Resolution:
-
-- MVP frontend state is generation-only.
-- Edit/upload components are documented as Post-MVP.
-
-### Config Allowed Too Much Initial Fan-Out
-
-Problem:
-
-- `max_n` was set to 4 in the contract.
-- First UI and backend should limit cost and latency risk.
-
-Resolution:
-
-- `max_n` is now 2 for MVP.
-
-## Final MVP Contract
-
-Backend:
+## Current API Contract
 
 ```text
-GET  /api/health
-GET  /api/config
-POST /api/generate
-GET  /api/images
-GET  /outputs/{filename}
+GET    /api/health
+GET    /api/config
+POST   /api/generate
+POST   /api/edit
+POST   /api/jobs
+GET    /api/jobs
+GET    /api/jobs/active
+GET    /api/jobs/{job_id}
+GET    /api/images
+DELETE /api/images/{image_id}
+GET    /outputs/{filename}
 ```
 
-Frontend:
+## Alignment Notes
 
-```text
-AppShell
-GeneratePanel
-ParameterControls
-ImagePreview
-HistoryGallery
-ErrorToast
-```
+- The Vue WebUI no longer renders background controls.
+- The backend still returns `backgrounds` in safe config and accepts
+  `background` in `ImageOptions` for compatibility.
+- Moderation uses `none` as an app-level sentinel. When selected, the backend
+  omits the upstream moderation parameter instead of sending a non-official
+  value.
+- Historical planning documents such as `three-codex-work-allocation.md` and
+  `v1-integration-verification.md` may still contain the earlier V1 scope and
+  verification model because they record the state at that phase.
 
-Data:
+## Backlog Boundary
 
-```text
-outputs/
-  manifest.json
-  generated-image-files
-```
+The following remain outside the current implementation:
 
-Acceptance:
+- Canvas mask painting.
+- Dedicated single-image detail route.
+- Multi-job queue management and cancellation.
+- User accounts and permissions.
+- Production deployment packaging.
 
-- Backend starts.
-- Frontend starts.
-- Config does not expose secrets.
-- A real generation request succeeds through the WebUI.
-- Generated image appears in preview.
-- Generated image appears in history after refresh and after generation.
+## Verification Checklist
 
+- Backend syntax checks pass.
+- Frontend production build passes.
+- `git diff --check` passes.
+- Runtime files, generated outputs, FRP binaries/config, and `auth.json` remain
+  ignored.
