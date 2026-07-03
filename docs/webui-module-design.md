@@ -161,6 +161,7 @@ Included:
 - `GET /api/jobs`
 - `GET /api/jobs/active`
 - `GET /api/jobs/{job_id}`
+- `DELETE /api/jobs/{job_id}`
 - `GET /api/images`
 - `DELETE /api/images/{image_id}`
 - Static serving for generated files under `/outputs/`

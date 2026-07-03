@@ -91,6 +91,19 @@ export async function listGenerationJobs(): Promise<GenerationJob[]> {
   return response.jobs;
 }
 
+export async function deleteGenerationJob(
+  jobId: string
+): Promise<GenerationJob[]> {
+  const response = await apiFetch<JobsResponse>(
+    `/api/jobs/${encodeURIComponent(jobId)}`,
+    {
+      method: "DELETE"
+    }
+  );
+
+  return response.jobs;
+}
+
 export async function deleteImage(imageId: string): Promise<ImageRecord[]> {
   const response = await apiFetch<ImagesResponse>(
     `/api/images/${encodeURIComponent(imageId)}`,

@@ -110,6 +110,7 @@ class EditOptions(BaseModel):
     size: str = "1024x1024"
     quality: str = "auto"
     output_format: str = "png"
+    moderation: str = "none"
     n: int = Field(default=1, ge=1, le=MAX_N)
 
     @validator("model")
@@ -128,6 +129,12 @@ class EditOptions(BaseModel):
     def validate_quality(cls, value: str) -> str:
         if value not in QUALITIES:
             raise ValueError("Unsupported quality.")
+        return value
+
+    @validator("moderation")
+    def validate_moderation(cls, value: str) -> str:
+        if value not in MODERATIONS:
+            raise ValueError("Unsupported moderation.")
         return value
 
     @validator("output_format")

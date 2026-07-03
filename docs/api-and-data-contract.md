@@ -101,7 +101,8 @@ Request uses `multipart/form-data`:
 - `images`: uploaded PNG/JPEG/WebP files, optional when `image_ids` is provided
 - `image_ids`: existing history image IDs, optional when files are uploaded
 - `source_order`: optional source ordering values
-- `model`, `size`, `quality`, `output_format`, `n`: image options
+- `model`, `size`, `quality`, `output_format`, `moderation`, `n`: image
+  options
 
 Response shape matches `POST /api/generate`, with image records using
 `type: "edit"` and optional `source_image_ids` / `source_filenames`.
@@ -148,6 +149,11 @@ Returns the newest queued or running job, or `null` when no job is active.
 ## `GET /api/jobs/{job_id}`
 
 Returns one job by ID, or `null` when not found.
+
+## `DELETE /api/jobs/{job_id}`
+
+Deletes a failed generation job from `outputs/jobs.json`. Only failed jobs can
+be deleted; queued, running, and succeeded jobs return an API error.
 
 ## `GET /api/images`
 

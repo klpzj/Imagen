@@ -24,6 +24,7 @@ POST   /api/jobs
 GET    /api/jobs
 GET    /api/jobs/active
 GET    /api/jobs/{job_id}
+DELETE /api/jobs/{job_id}
 GET    /api/images
 DELETE /api/images/{image_id}
 ```
@@ -189,6 +190,7 @@ def run_generation_job(job_id: str, request: GenerateRequest) -> None: ...
 def list_jobs() -> list[GenerationJob]: ...
 def get_job(job_id: str) -> GenerationJob | None: ...
 def get_active_job() -> GenerationJob | None: ...
+def delete_job(job_id: str) -> list[GenerationJob]: ...
 ```
 
 ## Error Shape
@@ -213,6 +215,8 @@ Common codes:
 - `edit_failed`
 - `image_not_found`
 - `jobs_invalid`
+- `job_not_found`
+- `job_delete_not_allowed`
 
 ## Backend Dependencies
 

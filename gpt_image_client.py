@@ -146,6 +146,7 @@ class GPTImageClient:
         size: str = DEFAULT_SIZE,
         quality: str = DEFAULT_QUALITY,
         output_format: str = DEFAULT_OUTPUT_FORMAT,
+        moderation: str | None = "none",
     ) -> list[ImageResult]:
         """Edit one or more input images from a text instruction."""
 
@@ -176,6 +177,8 @@ class GPTImageClient:
                 params["mask"] = opened_mask
             if output_format:
                 params["output_format"] = output_format
+            if moderation and moderation != "none":
+                params["extra_body"] = {"moderation": moderation}
 
             response = self.client.images.edit(**params)
         finally:
@@ -304,11 +307,11 @@ def _add_common_image_args(
             default=None,
             help="Generation background, e.g. auto, transparent, or opaque.",
         )
-        parser.add_argument(
-            "--moderation",
-            default="none",
-            help="Image moderation strictness, e.g. none, auto, or low.",
-        )
+    parser.add_argument(
+        "--moderation",
+        default="none",
+        help="Image moderation strictness, e.g. none, auto, or low.",
+    )
 
 
 def main() -> int:
@@ -345,6 +348,7 @@ def main() -> int:
             size=args.size,
             quality=args.quality,
             output_format=args.output_format,
+            moderation=args.moderation,
         )
     else:
         raise ValueError(f"Unsupported command: {args.command}")

@@ -8,7 +8,14 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import OUTPUTS_DIR, get_safe_config
 from .image_service import delete_image, edit_images, generate_images, get_images
-from .job_store import create_generation_job, get_active_job, get_job, list_jobs, run_generation_job
+from .job_store import (
+    create_generation_job,
+    delete_job,
+    get_active_job,
+    get_job,
+    list_jobs,
+    run_generation_job,
+)
 from .schemas import (
     AppError,
     EditOptions,
@@ -93,6 +100,7 @@ def edit(
     size: str = Form(default="1024x1024"),
     quality: str = Form(default="auto"),
     output_format: str = Form(default="png"),
+    moderation: str = Form(default="none"),
     n: int = Form(default=1),
     images: list[UploadFile] | None = File(default=None),
     upload_ids: list[str] | None = Form(default=None),
@@ -114,6 +122,7 @@ def edit(
         size=size,
         quality=quality,
         output_format=output_format,
+        moderation=moderation,
         n=n,
     )
 
@@ -162,6 +171,15 @@ def active_job() -> JobResponse:
 )
 def job(job_id: str) -> JobResponse:
     return JobResponse(job=get_job(job_id))
+
+
+@app.delete(
+    "/api/jobs/{job_id}",
+    response_model=JobListResponse,
+    response_model_exclude_none=True,
+)
+def remove_job(job_id: str) -> JobListResponse:
+    return JobListResponse(jobs=delete_job(job_id))
 
 
 @app.get(

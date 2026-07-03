@@ -199,6 +199,7 @@ export function createGenerationJob(payload: GeneratePayload): Promise<Generatio
 export function getGenerationJob(id: string): Promise<GenerationJob>
 export function getActiveGenerationJob(): Promise<GenerationJob | null>
 export function listGenerationJobs(): Promise<GenerationJob[]>
+export function deleteGenerationJob(id: string): Promise<GenerationJob[]>
 export function deleteImage(id: string): Promise<ImageRecord[]>
 ```
 

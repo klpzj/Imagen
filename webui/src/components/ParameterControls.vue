@@ -115,7 +115,7 @@ function moderationLabel(value: string): string {
       />
     </label>
 
-    <label v-if="mode === 'generate'" class="field">
+    <label class="field">
       <span>审查</span>
       <select
         :value="modelValue.moderation"

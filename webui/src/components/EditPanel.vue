@@ -53,7 +53,9 @@ watch(
       output_format: config.formats.includes(options.value.output_format)
         ? options.value.output_format
         : config.formats[0],
-      moderation: "none",
+      moderation: config.moderations.includes(options.value.moderation)
+        ? options.value.moderation
+        : "none",
       n: clampCount(options.value.n, config.max_n)
     };
   },
@@ -140,6 +142,7 @@ async function submit() {
     size: options.value.size,
     quality: options.value.quality,
     output_format: options.value.output_format,
+    moderation: options.value.moderation,
     n: clampCount(options.value.n, maxN)
   };
 

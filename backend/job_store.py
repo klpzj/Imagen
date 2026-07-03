@@ -101,6 +101,26 @@ def get_active_job() -> GenerationJob | None:
     return next((job for job in jobs if job.status in _ACTIVE_STATUSES), None)
 
 
+def delete_job(job_id: str) -> list[GenerationJob]:
+    with _LOCK:
+        jobs = _read_jobs()
+        job = next((item for item in jobs if item.id == job_id), None)
+
+        if job is None:
+            raise AppError("Generation job was not found.", "job_not_found", 404)
+
+        if job.status != "failed":
+            raise AppError(
+                "Only failed generation jobs can be deleted.",
+                "job_delete_not_allowed",
+                400,
+            )
+
+        next_jobs = [item for item in jobs if item.id != job_id]
+        _write_jobs(next_jobs)
+        return next_jobs
+
+
 def create_generation_job(request: GenerateRequest) -> GenerationJob:
     created_at = _now()
     job = GenerationJob(

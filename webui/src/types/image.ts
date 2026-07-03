@@ -24,6 +24,7 @@ export interface EditOptions {
   size: string;
   quality: string;
   output_format: string;
+  moderation: string;
   n: number;
 }
 

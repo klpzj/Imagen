@@ -34,6 +34,7 @@ Acceptance:
 - `GET /api/config` does not expose secrets.
 - `POST /api/generate` creates an image file and manifest record.
 - `POST /api/jobs` persists queued/running/succeeded/failed task state.
+- `DELETE /api/jobs/{job_id}` removes failed task records.
 - `POST /api/edit` can create edited images from uploads or history images.
 - `DELETE /api/images/{image_id}` removes the history record and local file.
 - Generated image URL opens in the browser.

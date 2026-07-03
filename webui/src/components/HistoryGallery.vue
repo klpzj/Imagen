@@ -55,6 +55,19 @@ function addToEdit(imageId: string) {
 async function removeImage(id: string) {
   await imageStore.deleteImage(id);
 }
+
+async function removeFailedJob(id: string) {
+  await imageStore.deleteFailedJob(id);
+}
+
+async function removeHistoryItem(item: HistoryItem) {
+  if (item.type === "image") {
+    await removeImage(item.image.id);
+    return;
+  }
+
+  await removeFailedJob(item.job.id);
+}
 </script>
 
 <template>
@@ -112,8 +125,9 @@ async function removeImage(id: string) {
           </span>
         </button>
 
-        <div v-if="item.type === 'image'" class="history-actions">
+        <div class="history-actions">
           <button
+            v-if="item.type === 'image'"
             class="history-action"
             type="button"
             title="添加到编辑"
@@ -129,12 +143,11 @@ async function removeImage(id: string) {
             title="删除"
             aria-label="删除"
             :disabled="imageStore.isBusy"
-            @click="removeImage(item.image.id)"
+            @click="removeHistoryItem(item)"
           >
             <Trash2 :size="15" aria-hidden="true" />
           </button>
         </div>
-        <span v-else class="history-delete-placeholder" aria-hidden="true" />
       </div>
     </div>
 

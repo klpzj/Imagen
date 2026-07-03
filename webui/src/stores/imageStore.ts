@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { resolveAssetUrl } from "../api/client";
 import {
   createGenerationJob,
+  deleteGenerationJob as deleteRemoteGenerationJob,
   deleteImage as deleteRemoteImage,
   editImage,
   getActiveGenerationJob,
@@ -115,6 +116,7 @@ function formatEditForm(
   formData.append("size", options.size);
   formData.append("quality", options.quality);
   formData.append("output_format", options.output_format);
+  formData.append("moderation", options.moderation);
   formData.append("n", String(options.n));
 
   for (const input of editInputs) {
@@ -451,6 +453,21 @@ export const useImageStore = defineStore("image", {
         this.images = await deleteRemoteImage(id);
         if (this.selectedImageId === id) {
           this.selectedImageId = this.images[0]?.id ?? null;
+        }
+      } catch (error) {
+        this.error = errorMessage(error);
+      }
+    },
+
+    async deleteFailedJob(id: string) {
+      try {
+        this.jobs = await deleteRemoteGenerationJob(id);
+        if (this.selectedJobId === id) {
+          this.selectedJobId = null;
+          this.selectedImageId = this.images[0]?.id ?? null;
+        }
+        if (this.activeJob?.id === id) {
+          this.activeJob = null;
         }
       } catch (error) {
         this.error = errorMessage(error);

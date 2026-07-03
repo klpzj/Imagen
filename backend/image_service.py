@@ -168,6 +168,7 @@ def edit_images(
                 size=options.size,
                 quality=options.quality,
                 output_format=options.output_format,
+                moderation=options.moderation,
             )
         except ValueError as exc:
             raise AppError(str(exc), "invalid_request", 400) from exc
@@ -196,7 +197,7 @@ def edit_images(
                 size=options.size,
                 quality=options.quality,
                 format=options.output_format,
-                moderation=None,
+                moderation=options.moderation,
                 created_at=created_at_text,
                 revised_prompt=result.revised_prompt,
                 source_image_ids=source_history_ids or None,
