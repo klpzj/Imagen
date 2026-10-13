@@ -9,7 +9,6 @@ import { useImageStore } from "../stores/imageStore";
 type ResizeSide = "left" | "right";
 
 const imageStore = useImageStore();
-const reuseRequest = ref<{ prompt: string; token: number } | null>(null);
 const leftWidth = ref(380);
 const rightWidth = ref(320);
 
@@ -55,10 +54,8 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function reusePrompt(prompt: string) {
-  reuseRequest.value = {
-    prompt,
-    token: Date.now()
-  };
+  imageStore.rememberDraft("generate");
+  imageStore.updateDraft("generate", { ...imageStore.drafts.generate, prompt });
   imageStore.setMode("generate");
 }
 
@@ -121,7 +118,7 @@ onBeforeUnmount(() => {
     </header>
 
     <main class="workspace" :style="workspaceStyle">
-      <ModePanel class="left-panel" :reuse-request="reuseRequest" />
+      <ModePanel class="left-panel" />
       <div
         class="resize-handle resize-handle-left"
         role="separator"

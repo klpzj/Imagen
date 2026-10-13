@@ -10,9 +10,11 @@ import {
   Maximize2,
   Minus,
   Plus,
-  RotateCcw
+  RotateCcw,
+  SlidersHorizontal,
+  Upload,
 } from "@lucide/vue";
-import { resolveAssetUrl } from "../api/client";
+import { isEmbeddedInPersonalStation, resolveAssetUrl } from "../api/client";
 import { useImageStore } from "../stores/imageStore";
 
 const emit = defineEmits<{
@@ -21,22 +23,30 @@ const emit = defineEmits<{
 }>();
 
 const imageStore = useImageStore();
+const embedded = isEmbeddedInPersonalStation();
 const copied = ref(false);
 const zoom = ref(100);
 const isFullscreen = ref(false);
 
-const image = computed(() => imageStore.selectedImage ?? imageStore.latestImage);
+const image = computed(
+  () => imageStore.selectedImage ?? imageStore.latestImage,
+);
 const failedJob = computed(() => imageStore.selectedFailedJob);
-const imageUrl = computed(() => (image.value ? resolveAssetUrl(image.value.url) : ""));
+const failedMessage = computed(
+  () => failedJob.value?.error?.trim() || "生成失败。",
+);
+const imageUrl = computed(() =>
+  image.value ? resolveAssetUrl(image.value.url) : "",
+);
 const imageStyle = computed(() => ({
-  transform: `scale(${zoom.value / 100})`
+  transform: `scale(${zoom.value / 100})`,
 }));
 
 watch(
   () => image.value?.id,
   () => {
     zoom.value = 100;
-  }
+  },
 );
 
 function clamp(value: number, min: number, max: number): number {
@@ -73,6 +83,12 @@ function openImage() {
   }
 }
 
+async function publishImage() {
+  if (image.value) {
+    await imageStore.publishImage(image.value.id);
+  }
+}
+
 function openFullscreen() {
   if (image.value) {
     isFullscreen.value = true;
@@ -89,10 +105,17 @@ function closeFullscreen() {
     <div class="panel-header preview-header">
       <div>
         <h2 id="preview-title">预览</h2>
-        <p>{{ image ? image.filename : failedJob ? "生成失败" : "未选择图片" }}</p>
+        <p>
+          {{ image ? image.filename : failedJob ? "生成失败" : "未选择图片" }}
+        </p>
       </div>
       <div v-if="image" class="preview-zoom" aria-label="图片缩放">
-        <button class="tool-button" type="button" title="缩小" @click="stepZoom(-10)">
+        <button
+          class="tool-button"
+          type="button"
+          title="缩小"
+          @click="stepZoom(-10)"
+        >
           <Minus :size="15" aria-hidden="true" />
         </button>
         <input
@@ -105,13 +128,28 @@ function closeFullscreen() {
           aria-label="缩放比例"
           @input="setZoom(Number(($event.target as HTMLInputElement).value))"
         />
-        <button class="tool-button" type="button" title="放大" @click="stepZoom(10)">
+        <button
+          class="tool-button"
+          type="button"
+          title="放大"
+          @click="stepZoom(10)"
+        >
           <Plus :size="15" aria-hidden="true" />
         </button>
-        <button class="zoom-value" type="button" title="适配窗口" @click="fitImage">
+        <button
+          class="zoom-value"
+          type="button"
+          title="适配窗口"
+          @click="fitImage"
+        >
           {{ zoom }}%
         </button>
-        <button class="tool-button" type="button" title="全屏预览" @click="openFullscreen">
+        <button
+          class="tool-button"
+          type="button"
+          title="全屏预览"
+          @click="openFullscreen"
+        >
           <Maximize2 :size="15" aria-hidden="true" />
         </button>
       </div>
@@ -120,13 +158,23 @@ function closeFullscreen() {
     <div class="preview-stage">
       <div v-if="imageStore.isBusy" class="preview-loading">
         <LoaderCircle :size="34" aria-hidden="true" />
-        <span>{{ imageStore.isEditing ? "正在编辑图片" : "正在生成图片" }}</span>
+        <span>{{
+          imageStore.isEditing ? "正在编辑图片" : "正在生成图片"
+        }}</span>
+        <p class="task-prompt">{{ imageStore.pendingEdit?.prompt ?? imageStore.activeJob?.prompt }}</p>
+        <details class="task-settings"><summary>查看本次提交的设置</summary><pre>{{ JSON.stringify(imageStore.pendingEdit?.options ?? imageStore.activeJob?.options, null, 2) }}</pre></details>
+        <small>草稿的后续修改用于下一次提交。</small>
       </div>
       <div v-else-if="failedJob" class="failed-preview-state">
         <AlertTriangle :size="34" aria-hidden="true" />
         <strong>任务失败</strong>
-        <span>{{ failedJob.error ?? "生成失败。" }}</span>
-        <p>{{ failedJob.prompt }}</p>
+        <span class="failed-message" :title="failedMessage">{{
+          failedMessage
+        }}</span>
+        <p class="failed-prompt" :title="failedJob.prompt">
+          {{ failedJob.prompt }}
+        </p>
+        <button type="button" class="button button-secondary" @click="imageStore.reuseJobSettings(failedJob)">载入设置后重试</button>
       </div>
       <div v-else-if="image" class="preview-image-scroll">
         <div class="preview-floating-actions" aria-label="图片操作">
@@ -139,6 +187,15 @@ function closeFullscreen() {
           >
             <Download :size="16" aria-hidden="true" />
           </a>
+          <button
+            class="image-action-button"
+            type="button"
+            title="复用完整设置"
+            aria-label="复用完整设置"
+            @click="imageStore.reuseImageSettings(image)"
+          >
+            <SlidersHorizontal :size="16" aria-hidden="true" />
+          </button>
           <button
             class="image-action-button"
             type="button"
@@ -167,6 +224,31 @@ function closeFullscreen() {
             <Edit3 :size="16" aria-hidden="true" />
           </button>
           <button
+            v-if="embedded"
+            class="image-action-button"
+            :class="{
+              published: imageStore.publishedImageIds.includes(image.id),
+            }"
+            type="button"
+            :title="
+              imageStore.publishedImageIds.includes(image.id)
+                ? '已发布到站点媒体库'
+                : '发布到站点媒体库'
+            "
+            :aria-label="
+              imageStore.publishedImageIds.includes(image.id)
+                ? '已发布到站点媒体库'
+                : '发布到站点媒体库'
+            "
+            :disabled="
+              imageStore.publishingImageId !== null ||
+              imageStore.publishedImageIds.includes(image.id)
+            "
+            @click="publishImage"
+          >
+            <Upload :size="16" aria-hidden="true" />
+          </button>
+          <button
             class="image-action-button"
             type="button"
             title="打开原图"
@@ -176,13 +258,20 @@ function closeFullscreen() {
             <ExternalLink :size="16" aria-hidden="true" />
           </button>
         </div>
-        <img class="preview-image" :src="imageUrl" :alt="image.prompt" :style="imageStyle" />
+        <img
+          class="preview-image"
+          :src="imageUrl"
+          :alt="image.prompt"
+          :style="imageStyle"
+        />
       </div>
       <div v-else class="empty-state">
         <strong>还没有图片</strong>
         <span>生成或编辑完成后，结果会显示在这里。</span>
       </div>
     </div>
+
+    <details v-if="image && !imageStore.isBusy && !failedJob" class="result-settings"><summary>图片参数与提示词</summary><p>{{ image.prompt }}</p><pre>{{ JSON.stringify(image.options ?? { model: image.model, size: image.size, quality: image.quality, output_format: image.format }, null, 2) }}</pre><small v-if="!image.options">旧记录仅保存了部分参数。</small></details>
 
     <Teleport to="body">
       <Transition name="fullscreen-preview">
@@ -194,7 +283,11 @@ function closeFullscreen() {
           aria-label="全屏图片预览"
           @click.self="closeFullscreen"
         >
-          <button class="fullscreen-close" type="button" @click="closeFullscreen">
+          <button
+            class="fullscreen-close"
+            type="button"
+            @click="closeFullscreen"
+          >
             关闭
           </button>
           <img class="fullscreen-image" :src="imageUrl" :alt="image.prompt" />

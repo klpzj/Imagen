@@ -24,6 +24,13 @@ Read these documents in order when implementing the Vue WebUI.
      worker prompts.
 9. [V1 integration verification](v1-integration-verification.md)
    - Final V1 verification commands, results, and generated output path.
+10. [Historical PersonalStation integration](personalstation-integration.md)
+   - 旧 iframe/BFF 方案及对应历史版本的本地/FRP 运行方式。
+11. [独立版参数编辑升级](parameter-editing-upgrade.zh-CN.md)
+   - Vue/FastAPI 已实现参数、可输入选择框、草稿/预设、蒙版与验证方法。
+   - [原始草案与交互原型](parameter-editing-upgrade-draft.zh-CN.md)。
+
+正式站点使用 [PersonalStation 原生 Svelte/Rust 版本](https://github.com/klpzj/PersonalStation/blob/main/docs/imagen-parameters.md)，入口为 [Imagen 工房](https://bunnykloud.site/index/workshop/imagen)。
 
 Current implementation target:
 

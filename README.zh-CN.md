@@ -1,5 +1,7 @@
 # Imagen GPT 生图工具
 
+本仓库维护独立 Vue/FastAPI 版本与 Python CLI。[正式 Imagen 工房](https://bunnykloud.site/index/workshop/imagen)由 [PersonalStation](https://github.com/klpzj/PersonalStation) 的原生 Svelte/Rust 实现运行；线上使用说明见[原生参数编辑文档](https://github.com/klpzj/PersonalStation/blob/main/docs/imagen-parameters.md)。下文描述本仓库的独立版本。
+
 这是一个本地运行的 GPT 生图工具，包含：
 
 - Python 生图封装脚本 `gpt_image_client.py`
@@ -10,6 +12,8 @@
 - 可选 FRP 端口穿透
 
 当前版本聚焦文本生图、图片编辑、结果预览、下载、历史记录和本地开发穿透。
+
+参数面板已升级：所有下拉框均可直接输入，支持宽高编辑、背景、压缩、保真度、蒙版、风格、响应形式、超时和扩展 JSON。生成/编辑草稿独立保存，提供命名预设、导入导出、撤销、完整设置复用，等待期间可以继续编辑下一次草稿。详见[参数编辑升级说明](docs/parameter-editing-upgrade.zh-CN.md)。
 
 ## 目录结构
 
@@ -56,6 +60,8 @@ imagen/
 ## 安装依赖
 
 Python 后端依赖：
+
+需要 OpenAI SDK 2.0.0 或更新版本及 Pillow 10 或更新版本。
 
 ```powershell
 pip install -r requirements.txt
@@ -140,6 +146,9 @@ python .\gpt_image_client.py generate `
 - `--quality`：质量，支持 `auto`、`low`、`medium`、`high`
 - `--format`：输出格式，支持 `png`、`jpeg`、`webp`
 - `--n`：生成数量
+- `--background`、`--output-compression`、`--response-format`、`--extra-body`：两个模式共享的可选参数
+- `--style`：生成专用；`--input-fidelity`、`--mask`：编辑专用
+- `--timeout`：请求超时（全局参数，放在 `generate` / `edit` 前）
 - `-o/--out-dir`：输出目录
 
 ## 后端接口
@@ -257,6 +266,12 @@ http://<frps-server>:15173
 
 ## 验证
 
+参数链路回归测试（临时目录与模拟服务，不产生生图请求）：
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
 后端语法检查：
 
 ```powershell
@@ -268,6 +283,7 @@ python -m py_compile backend\app.py backend\config.py backend\schemas.py backend
 ```powershell
 cd webui
 npm run build
+npm run test:ui
 ```
 
 健康检查：

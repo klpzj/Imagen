@@ -3,7 +3,7 @@ import type {
   AppConfig,
   GeneratePayload,
   GenerationJob,
-  ImageRecord
+  ImageRecord,
 } from "../types/image";
 
 interface ConfigResponse extends AppConfig {}
@@ -20,6 +20,12 @@ interface JobsResponse {
   jobs: GenerationJob[];
 }
 
+export interface PublishImageResponse {
+  url: string;
+  image_id: string;
+  source_filename: string;
+}
+
 export function getConfig(): Promise<AppConfig> {
   return apiFetch<ConfigResponse>("/api/config");
 }
@@ -30,11 +36,11 @@ export async function listImages(): Promise<ImageRecord[]> {
 }
 
 export async function generateImage(
-  payload: GeneratePayload
+  payload: GeneratePayload,
 ): Promise<ImageRecord[]> {
   const response = await apiFetch<ImagesResponse>("/api/generate", {
     method: "POST",
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 
   return response.images;
@@ -43,7 +49,7 @@ export async function generateImage(
 export async function editImage(formData: FormData): Promise<ImageRecord[]> {
   const response = await fetch(`${API_BASE}/api/edit`, {
     method: "POST",
-    body: formData
+    body: formData,
   });
 
   if (!response.ok) {
@@ -55,11 +61,11 @@ export async function editImage(formData: FormData): Promise<ImageRecord[]> {
 }
 
 export async function createGenerationJob(
-  payload: GeneratePayload
+  payload: GeneratePayload,
 ): Promise<GenerationJob> {
   const response = await apiFetch<JobResponse>("/api/jobs", {
     method: "POST",
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 
   if (!response.job) {
@@ -71,7 +77,7 @@ export async function createGenerationJob(
 
 export async function getGenerationJob(jobId: string): Promise<GenerationJob> {
   const response = await apiFetch<JobResponse>(
-    `/api/jobs/${encodeURIComponent(jobId)}`
+    `/api/jobs/${encodeURIComponent(jobId)}`,
   );
 
   if (!response.job) {
@@ -92,13 +98,13 @@ export async function listGenerationJobs(): Promise<GenerationJob[]> {
 }
 
 export async function deleteGenerationJob(
-  jobId: string
+  jobId: string,
 ): Promise<GenerationJob[]> {
   const response = await apiFetch<JobsResponse>(
     `/api/jobs/${encodeURIComponent(jobId)}`,
     {
-      method: "DELETE"
-    }
+      method: "DELETE",
+    },
   );
 
   return response.jobs;
@@ -108,9 +114,16 @@ export async function deleteImage(imageId: string): Promise<ImageRecord[]> {
   const response = await apiFetch<ImagesResponse>(
     `/api/images/${encodeURIComponent(imageId)}`,
     {
-      method: "DELETE"
-    }
+      method: "DELETE",
+    },
   );
 
   return response.images;
+}
+
+export function publishImage(imageId: string): Promise<PublishImageResponse> {
+  return apiFetch<PublishImageResponse>("/publish", {
+    method: "POST",
+    body: JSON.stringify({ image_id: imageId }),
+  });
 }

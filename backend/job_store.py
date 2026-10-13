@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
-from .config import JOBS_PATH, OUTPUTS_DIR
+from .config import JOBS_PATH, OUTPUTS_DIR, get_backend_settings
 from .image_service import generate_images
 from .schemas import AppError, GenerateRequest, GenerationJob
 
@@ -127,19 +127,25 @@ def create_generation_job(request: GenerateRequest) -> GenerationJob:
         id=f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:8]}",
         status="queued",
         prompt=request.prompt,
-        options=_model_to_data(request.options),
+        options={**request.options.effective_options(),
+                 "model": request.options.model or get_backend_settings().default_model},
         created_at=created_at,
         updated_at=created_at,
     )
-    _replace_job(job)
+    with _LOCK:
+        jobs = _read_jobs()
+        if any(item.status in _ACTIVE_STATUSES for item in jobs):
+            raise AppError("已有生成任务正在运行，请等待完成。", "job_busy", 409)
+        _write_jobs(jobs + [job])
     return job
 
 
-def run_generation_job(job_id: str, request: GenerateRequest) -> None:
+def run_generation_job(job_id: str) -> None:
     job = get_job(job_id)
     _replace_job(job.copy(update={"status": "running", "updated_at": _now()}))
 
     try:
+        request = GenerateRequest(prompt=job.prompt, options=job.options)
         response = generate_images(request)
     except Exception as exc:
         message = exc.message if isinstance(exc, AppError) else "Generation failed."
@@ -148,6 +154,7 @@ def run_generation_job(job_id: str, request: GenerateRequest) -> None:
                 "status": "failed",
                 "updated_at": _now(),
                 "error": message,
+                "error_fields": exc.fields if isinstance(exc, AppError) else {},
             }
         )
         _replace_job(failed)

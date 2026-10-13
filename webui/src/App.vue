@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, watch } from "vue";
 import AppShell from "./components/AppShell.vue";
 import ErrorToast from "./components/ErrorToast.vue";
 import { useImageStore } from "./stores/imageStore";
 
 const imageStore = useImageStore();
+watch(() => [imageStore.drafts, imageStore.presets, imageStore.mode, imageStore.editInputs, imageStore.uploadedAssets, imageStore.editMask, imageStore.missingUploadNames], () => imageStore.persistWorkspace(), { deep: true });
 
 onMounted(async () => {
   await imageStore.loadConfig();

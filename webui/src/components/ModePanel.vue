@@ -4,10 +4,6 @@ import EditPanel from "./EditPanel.vue";
 import GeneratePanel from "./GeneratePanel.vue";
 import { useImageStore } from "../stores/imageStore";
 
-defineProps<{
-  reuseRequest: { prompt: string; token: number } | null;
-}>();
-
 const imageStore = useImageStore();
 </script>
 
@@ -16,7 +12,7 @@ const imageStore = useImageStore();
     <div class="panel-header mode-header">
       <div>
         <h2 id="mode-title">{{ imageStore.mode === "generate" ? "生成" : "编辑" }}</h2>
-        <p>{{ imageStore.mode === "generate" ? "提示词与输出设置" : "多图片上传与编辑队列" }}</p>
+        <p>{{ imageStore.storageAvailable ? "草稿自动保存在本机" : "草稿保留在当前页面" }}</p>
       </div>
       <div class="mode-switch" role="tablist" aria-label="工作模式">
         <button
@@ -42,7 +38,9 @@ const imageStore = useImageStore();
       </div>
     </div>
 
-    <GeneratePanel v-if="imageStore.mode === 'generate'" :reuse-request="reuseRequest" />
+    <div v-if="imageStore.notice" class="workspace-notice" role="status"><span>{{ imageStore.notice }}</span><button type="button" aria-label="关闭提示" @click="imageStore.notice = null">×</button></div>
+    <div v-if="imageStore.missingUploadNames.length" class="workspace-notice missing-assets"><span>这些上传文件需重新添加：{{ imageStore.missingUploadNames.join('、') }}。添加后请核对输入顺序与第一张图片。</span><button type="button" @click="imageStore.missingUploadNames = []">忽略缺失素材</button></div>
+    <GeneratePanel v-if="imageStore.mode === 'generate'" />
     <EditPanel v-else />
   </section>
 </template>

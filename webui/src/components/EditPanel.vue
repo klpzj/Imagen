@@ -1,165 +1,68 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import {
-  ArrowDown,
-  ArrowUp,
-  ImagePlus,
-  LoaderCircle,
-  Trash2,
-  Upload,
-  WandSparkles,
-  X
-} from "@lucide/vue";
+import { ArrowDown, ArrowUp, ImagePlus, LoaderCircle, Trash2, Upload, WandSparkles, X } from "@lucide/vue";
 import ParameterControls from "./ParameterControls.vue";
+import ParameterPresets from "./ParameterPresets.vue";
+import { validateDraft } from "../parameters";
 import { useImageStore } from "../stores/imageStore";
-import type { EditOptions, ImageOptions, UploadedImageAsset } from "../types/image";
+import type { UploadedImageAsset } from "../types/image";
 
 const imageStore = useImageStore();
 const fileInput = ref<HTMLInputElement | null>(null);
-const prompt = ref("");
+const maskInput = ref<HTMLInputElement | null>(null);
 const isDragging = ref(false);
 const selectedAssetId = ref<string | null>(null);
-const options = ref<ImageOptions>({
-  model: undefined,
-  size: "1024x1024",
-  quality: "auto",
-  output_format: "png",
-  moderation: "none",
-  n: 1
-});
-
-const selectedAsset = computed<UploadedImageAsset | null>(
-  () => imageStore.uploadedAssets.find((asset) => asset.id === selectedAssetId.value) ?? null
-);
-const canEdit = computed(
-  () => prompt.value.trim().length > 0 && imageStore.editInputs.length > 0 && !imageStore.isBusy
-);
-
-watch(
-  () => imageStore.config,
-  (config) => {
-    if (!config) {
-      return;
-    }
-
-    options.value = {
-      model: options.value.model ?? config.default_model ?? config.models[0],
-      size: config.sizes.includes(options.value.size)
-        ? options.value.size
-        : config.sizes[0],
-      quality: config.qualities.includes(options.value.quality)
-        ? options.value.quality
-        : config.qualities[0],
-      output_format: config.formats.includes(options.value.output_format)
-        ? options.value.output_format
-        : config.formats[0],
-      moderation: config.moderations.includes(options.value.moderation)
-        ? options.value.moderation
-        : "none",
-      n: clampCount(options.value.n, config.max_n)
-    };
-  },
-  { immediate: true }
-);
-
-watch(
-  () => imageStore.uploadedAssets.length,
-  () => {
-    if (!selectedAssetId.value && imageStore.uploadedAssets.length > 0) {
-      selectedAssetId.value = imageStore.uploadedAssets[0].id;
-    }
-  }
-);
-
-function clampCount(value: number, max: number): number {
-  return Math.max(1, Math.min(max, Math.round(value || 1)));
-}
-
-function openFilePicker() {
-  fileInput.value?.click();
-}
-
+const draft = computed(() => imageStore.drafts.edit);
+const prompt = computed({ get: () => draft.value.prompt, set: value => imageStore.updateDraft("edit", { ...draft.value, prompt: value }) });
+const options = computed({ get: () => draft.value.options, set: value => imageStore.updateDraft("edit", { ...draft.value, options: value }) });
+const selectedAsset = computed<UploadedImageAsset | null>(() => imageStore.uploadedAssets.find(asset => asset.id === selectedAssetId.value) ?? null);
+const validation = computed(() => validateDraft(draft.value, imageStore.config, "edit"));
+const canEdit = computed(() => Boolean(imageStore.config) && imageStore.editInputs.length > 0 && !imageStore.isBusy && !Object.keys(validation.value.errors).length);
+const promptError = computed(() => imageStore.fieldErrors.edit.prompt || (prompt.value ? validation.value.errors.prompt : ""));
+watch(() => imageStore.uploadedAssets.length, () => { if (!selectedAssetId.value && imageStore.uploadedAssets.length) selectedAssetId.value = imageStore.uploadedAssets[0].id; }, { immediate: true });
+function openFilePicker() { fileInput.value?.click(); }
 async function addFiles(fileList: FileList | File[] | null) {
-  const files = Array.from(fileList ?? []);
-  if (files.length === 0) {
-    return;
-  }
-
   const previousCount = imageStore.uploadedAssets.length;
-  await imageStore.addUploadedFiles(files);
-  selectedAssetId.value =
-    imageStore.uploadedAssets[previousCount]?.id ??
-    imageStore.uploadedAssets[imageStore.uploadedAssets.length - 1]?.id ??
-    selectedAssetId.value;
+  await imageStore.addUploadedFiles(Array.from(fileList ?? []));
+  selectedAssetId.value = imageStore.uploadedAssets[previousCount]?.id ?? imageStore.uploadedAssets[0]?.id ?? null;
 }
-
-function handleFileInput(event: Event) {
-  const input = event.target as HTMLInputElement;
-  void addFiles(input.files);
-  input.value = "";
+function handleFileInput(event: Event) { const input = event.target as HTMLInputElement; void addFiles(input.files); input.value = ""; }
+function handleDrop(event: DragEvent) { isDragging.value = false; void addFiles(event.dataTransfer?.files ?? null); }
+function handlePaste(event: ClipboardEvent) {
+  const files = Array.from(event.clipboardData?.files ?? []);
+  if (files.length) { event.preventDefault(); void addFiles(files); }
 }
-
-function handleDrop(event: DragEvent) {
-  isDragging.value = false;
-  void addFiles(event.dataTransfer?.files ?? null);
-}
-
 function removeAsset(assetId: string) {
   imageStore.removeUploadedAsset(assetId);
-  if (selectedAssetId.value === assetId) {
-    selectedAssetId.value = imageStore.uploadedAssets[0]?.id ?? null;
-  }
+  if (selectedAssetId.value === assetId) selectedAssetId.value = imageStore.uploadedAssets[0]?.id ?? null;
 }
-
-function assetQueued(assetId: string): boolean {
-  return imageStore.editInputs.some((input) => input.assetId === assetId);
-}
-
-function addAsset(assetId: string) {
-  imageStore.addAssetToEdit(assetId);
-}
-
-function formatBytes(value: number): string {
-  if (value < 1024) {
-    return `${value} B`;
-  }
-
-  if (value < 1024 * 1024) {
-    return `${(value / 1024).toFixed(1)} KB`;
-  }
-
+function assetQueued(assetId: string) { return imageStore.editInputs.some(input => input.assetId === assetId); }
+function addAsset(assetId: string) { imageStore.addAssetToEdit(assetId); }
+function formatBytes(value: number) {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
-
-async function submit() {
-  if (!canEdit.value) {
-    return;
-  }
-
-  const maxN = imageStore.config?.max_n ?? 1;
-  const editOptions: EditOptions = {
-    model: options.value.model,
-    size: options.value.size,
-    quality: options.value.quality,
-    output_format: options.value.output_format,
-    moderation: options.value.moderation,
-    n: clampCount(options.value.n, maxN)
-  };
-
-  await imageStore.edit(prompt.value, editOptions);
-}
+function submit() { void imageStore.submitDraft("edit"); }
+function shortcut(event: KeyboardEvent) { if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && !event.isComposing) { event.preventDefault(); if (canEdit.value) submit(); } }
+async function selectMask(event: Event) { const input = event.target as HTMLInputElement; if (input.files?.[0]) await imageStore.setEditMask(input.files[0]); input.value = ""; }
 </script>
 
 <template>
-  <form class="mode-form" @submit.prevent="submit">
+  <form class="mode-form" @submit.prevent="submit" @keydown="shortcut">
+    <ParameterPresets mode="edit" />
     <label class="field">
       <span>编辑指令</span>
       <textarea
         v-model="prompt"
         rows="6"
-        :disabled="imageStore.isBusy"
+        :aria-invalid="Boolean(promptError)"
+        aria-label="编辑指令"
+        aria-describedby="edit-prompt-help"
       />
     </label>
+
+    <small id="edit-prompt-help" :class="promptError ? 'field-error' : 'field-hint'">{{ promptError || `${[...prompt].length} / ${imageStore.config?.max_prompt_length ?? 32000} 字符` }}</small>
 
     <section class="edit-section" aria-labelledby="upload-title">
       <div class="section-heading">
@@ -179,10 +82,11 @@ async function submit() {
         @dragover.prevent="isDragging = true"
         @dragleave.prevent="isDragging = false"
         @drop.prevent="handleDrop"
+        @paste="handlePaste"
       >
         <Upload :size="20" aria-hidden="true" />
-        <span>点击或拖拽上传多张图片</span>
-        <small>PNG、JPEG、WebP</small>
+        <span>点击、拖拽或在此粘贴图片</span>
+        <small>PNG、JPEG、WebP · 上传后直接加入输入列表</small>
       </div>
       <input
         ref="fileInput"
@@ -217,7 +121,7 @@ async function submit() {
                 class="tool-button"
                 type="button"
                 :disabled="assetQueued(asset.id)"
-                :title="assetQueued(asset.id) ? '已在编辑队列' : '添加到编辑队列'"
+                :title="assetQueued(asset.id) ? '已在输入图片' : '添加到输入图片'"
                 @click="addAsset(asset.id)"
               >
                 <ImagePlus :size="15" aria-hidden="true" />
@@ -249,7 +153,7 @@ async function submit() {
 
     <section class="edit-section" aria-labelledby="queue-title">
       <div class="section-heading">
-        <h3 id="queue-title">编辑队列</h3>
+        <h3 id="queue-title">输入图片</h3>
         <small>{{ imageStore.editInputs.length }} 张</small>
       </div>
 
@@ -271,7 +175,7 @@ async function submit() {
               class="tool-button"
               type="button"
               title="上移"
-              :disabled="index === 0 || imageStore.isBusy"
+              :disabled="index === 0"
               @click="imageStore.moveEditInput(input.id, 'up')"
             >
               <ArrowUp :size="15" aria-hidden="true" />
@@ -280,7 +184,7 @@ async function submit() {
               class="tool-button"
               type="button"
               title="下移"
-              :disabled="index === imageStore.editInputs.length - 1 || imageStore.isBusy"
+              :disabled="index === imageStore.editInputs.length - 1"
               @click="imageStore.moveEditInput(input.id, 'down')"
             >
               <ArrowDown :size="15" aria-hidden="true" />
@@ -289,7 +193,6 @@ async function submit() {
               class="tool-button danger"
               type="button"
               title="移除"
-              :disabled="imageStore.isBusy"
               @click="imageStore.removeEditInput(input.id)"
             >
               <X :size="15" aria-hidden="true" />
@@ -297,20 +200,26 @@ async function submit() {
           </div>
         </article>
       </div>
-      <div v-else class="queue-empty">从已上传图片添加素材后，队列顺序就是编辑输入顺序。</div>
+      <div v-else class="queue-empty">添加上传图片或历史图片，列表顺序就是模型收到的输入顺序。</div>
+    </section>
+
+    <p v-if="imageStore.fieldErrors.edit.images" class="field-error">{{ imageStore.fieldErrors.edit.images }}</p>
+    <section class="edit-section" aria-labelledby="mask-title">
+      <div class="section-heading"><h3 id="mask-title">局部编辑蒙版（可选）</h3><button v-if="imageStore.editMask" type="button" class="text-button" @click="imageStore.clearEditMask">清除蒙版</button></div>
+      <button type="button" class="button button-secondary" @click="maskInput?.click()">{{ imageStore.editMask?.filename ?? "上传 PNG 蒙版" }}</button>
+      <input ref="maskInput" class="file-input" type="file" accept="image/png" @change="selectMask" />
+      <img v-if="imageStore.editMask" :src="imageStore.editMask.previewUrl" class="mask-preview" alt="蒙版透明区域预览" />
+      <small class="field-hint">透明区域指定编辑范围；蒙版对应列表第一张图片，尺寸须一致且小于 4 MB。{{ imageStore.editMask ? `${imageStore.editMask.width} × ${imageStore.editMask.height}` : '' }}</small>
+      <small v-if="imageStore.fieldErrors.edit.mask" class="field-error">{{ imageStore.fieldErrors.edit.mask }}</small>
     </section>
 
     <ParameterControls
       v-model="options"
       :config="imageStore.config"
-      :disabled="imageStore.isBusy"
+      :errors="imageStore.fieldErrors.edit"
       mode="edit"
     />
 
-    <button class="button button-primary edit-submit" type="submit" :disabled="!canEdit">
-      <LoaderCircle v-if="imageStore.isEditing" class="loading-icon" :size="16" aria-hidden="true" />
-      <WandSparkles v-else :size="16" aria-hidden="true" />
-      <span>{{ imageStore.isEditing ? "编辑中" : "编辑图片" }}</span>
-    </button>
+    <div class="submit-area"><p v-if="imageStore.isBusy" class="field-hint">可以继续修改草稿；本次请求使用提交时的图片和设置。</p><button class="button button-primary edit-submit" type="submit" :disabled="!canEdit"><LoaderCircle v-if="imageStore.isEditing" class="loading-icon" :size="16" aria-hidden="true" /><WandSparkles v-else :size="16" aria-hidden="true" /><span>{{ imageStore.isBusy ? "等待当前任务" : "编辑图片" }}</span></button><small class="field-hint">Ctrl / ⌘ + Enter 提交</small></div>
   </form>
 </template>

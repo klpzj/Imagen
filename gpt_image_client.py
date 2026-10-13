@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import io
 import json
 import os
 import re
@@ -9,7 +10,10 @@ import time
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
+from uuid import uuid4
+
+from PIL import Image
 
 
 DEFAULT_MODEL = "gpt-image-2"
@@ -17,6 +21,21 @@ DEFAULT_SIZE = "1024x1024"
 DEFAULT_QUALITY = "auto"
 DEFAULT_OUTPUT_FORMAT = "png"
 DEFAULT_BASE_URL = "http://149.248.37.38:8080/"
+
+# Extensions are image-body values, not another source of request authority.
+RESERVED_IMAGE_FIELDS = frozenset({
+    "model", "prompt", "n", "size", "quality", "output_format", "background",
+    "moderation", "output_compression", "response_format", "input_fidelity", "style",
+    "image", "images", "image_ids", "source_order", "mask", "stream", "partial_images",
+    "user", "timeout", "api_key", "API_KEY", "base_url", "headers", "extra_headers",
+    "extra_query", "extra_body", "auth_file", "out_dir", "output_dir", "filename_prefix",
+})
+
+
+def validate_extra_body(values: dict[str, Any]) -> None:
+    conflict = RESERVED_IMAGE_FIELDS.intersection(values)
+    if conflict:
+        raise ValueError(f"扩展参数不能覆盖专用字段或服务设置：{', '.join(sorted(conflict))}。")
 
 
 @dataclass(frozen=True)
@@ -76,7 +95,8 @@ class GPTImageClient:
         self.client = OpenAI(
             api_key=key,
             base_url=self.base_url,
-            timeout=timeout,
+            max_retries=0,
+            **({"timeout": timeout} if timeout is not None else {}),
         )
 
     @staticmethod
@@ -108,30 +128,29 @@ class GPTImageClient:
         output_format: str = DEFAULT_OUTPUT_FORMAT,
         background: str | None = None,
         moderation: str | None = "none",
+        output_compression: int | None = None,
+        style: str | None = None,
+        response_format: str | None = None,
+        extra_body: dict[str, Any] | None = None,
     ) -> list[ImageResult]:
         """Generate one or more images from text and save them locally."""
 
         self._validate_prompt(prompt)
-        params = {
-            "model": self.model,
-            "prompt": prompt,
-            "n": n,
-            "size": size,
-            "quality": quality,
-        }
-        if background:
-            params["background"] = background
+        params = self._image_parameters(
+            prompt, n=n, size=size, quality=quality, output_format=output_format,
+            background=background, output_compression=output_compression,
+            response_format=response_format, extra_body=extra_body,
+        )
         if moderation and moderation != "none":
             params["moderation"] = moderation
-        if output_format:
-            params["output_format"] = output_format
+        if style:
+            params["style"] = style
 
         response = self.client.images.generate(**params)
         return self._save_response_images(
             response,
             out_dir=out_dir,
             filename_prefix=filename_prefix or _slugify(prompt),
-            output_format=output_format,
         )
 
     def edit(
@@ -147,6 +166,11 @@ class GPTImageClient:
         quality: str = DEFAULT_QUALITY,
         output_format: str = DEFAULT_OUTPUT_FORMAT,
         moderation: str | None = "none",
+        background: str | None = None,
+        output_compression: int | None = None,
+        input_fidelity: str | None = None,
+        response_format: str | None = None,
+        extra_body: dict[str, Any] | None = None,
     ) -> list[ImageResult]:
         """Edit one or more input images from a text instruction."""
 
@@ -165,20 +189,18 @@ class GPTImageClient:
         opened_images = [path.open("rb") for path in image_paths]
         opened_mask = mask_path.open("rb") if mask_path else None
         try:
-            params = {
-                "model": self.model,
-                "image": opened_images[0] if len(opened_images) == 1 else opened_images,
-                "prompt": prompt,
-                "n": n,
-                "size": size,
-                "quality": quality,
-            }
+            params = self._image_parameters(
+                prompt, n=n, size=size, quality=quality, output_format=output_format,
+                background=background, output_compression=output_compression,
+                response_format=response_format, extra_body=extra_body,
+            )
+            params["image"] = opened_images[0] if len(opened_images) == 1 else opened_images
             if opened_mask:
                 params["mask"] = opened_mask
-            if output_format:
-                params["output_format"] = output_format
+            if input_fidelity:
+                params["input_fidelity"] = input_fidelity
             if moderation and moderation != "none":
-                params["extra_body"] = {"moderation": moderation}
+                params.setdefault("extra_body", {})["moderation"] = moderation
 
             response = self.client.images.edit(**params)
         finally:
@@ -191,8 +213,29 @@ class GPTImageClient:
             response,
             out_dir=out_dir,
             filename_prefix=filename_prefix or f"edit-{_slugify(prompt)}",
-            output_format=output_format,
         )
+
+    def _image_parameters(
+        self, prompt: str, *, n: int, size: str, quality: str, output_format: str,
+        background: str | None, output_compression: int | None,
+        response_format: str | None, extra_body: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        validate_extra_body(extra_body or {})
+        params: dict[str, Any] = {
+            "model": self.model, "prompt": prompt, "n": n, "size": size,
+            "quality": quality, "output_format": output_format,
+        }
+        if background:
+            if background == "transparent" and output_format == "jpeg":
+                raise ValueError("JPEG 无法保存透明背景。")
+            params["background"] = background
+        if output_compression is not None and output_format in {"jpeg", "webp"}:
+            params["output_compression"] = output_compression
+        if response_format:
+            params["response_format"] = response_format
+        if extra_body:
+            params["extra_body"] = dict(extra_body)
+        return params
 
     @staticmethod
     def _validate_prompt(prompt: str) -> None:
@@ -205,7 +248,6 @@ class GPTImageClient:
         *,
         out_dir: str | Path,
         filename_prefix: str,
-        output_format: str,
     ) -> list[ImageResult]:
         target_dir = Path(out_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -215,21 +257,29 @@ class GPTImageClient:
             raise RuntimeError("Image API returned no image data.")
 
         timestamp = time.strftime("%Y%m%d-%H%M%S")
-        extension = _normalize_extension(output_format)
+        batch_id = uuid4().hex[:8]
         results: list[ImageResult] = []
 
         for index, item in enumerate(data, start=1):
-            path = target_dir / f"{filename_prefix}-{timestamp}-{index}.{extension}"
             b64_json = getattr(item, "b64_json", None)
             url = getattr(item, "url", None)
 
             if b64_json:
-                path.write_bytes(base64.b64decode(b64_json))
+                image_bytes = base64.b64decode(b64_json)
             elif url:
                 with urllib.request.urlopen(url, timeout=60) as response_stream:
-                    path.write_bytes(response_stream.read())
+                    image_bytes = response_stream.read()
             else:
                 raise RuntimeError("Image item did not include b64_json or url.")
+
+            with Image.open(io.BytesIO(image_bytes)) as image:
+                actual_format = (image.format or "").lower()
+                image.verify()
+            if actual_format not in {"png", "jpeg", "webp"}:
+                raise RuntimeError("Image API returned an unsupported image format.")
+            extension = _normalize_extension(actual_format)
+            path = target_dir / f"{filename_prefix}-{timestamp}-{batch_id}-{index}.{extension}"
+            path.write_bytes(image_bytes)
 
             results.append(
                 ImageResult(
@@ -275,11 +325,13 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     generate_parser = subparsers.add_parser("generate", help="Create images from text.")
-    _add_common_image_args(generate_parser, include_background=True)
+    _add_common_image_args(generate_parser)
+    generate_parser.add_argument("--style", default=None, help="Optional model-supported style.")
     generate_parser.add_argument("prompt", nargs="+", help="Prompt text.")
 
     edit_parser = subparsers.add_parser("edit", help="Edit images from text.")
     _add_common_image_args(edit_parser)
+    edit_parser.add_argument("--input-fidelity", default=None, help="Optional input fidelity, e.g. low or high.")
     edit_parser.add_argument("--image", action="append", required=True, help="Input image path.")
     edit_parser.add_argument("--mask", default=None, help="Optional mask image path.")
     edit_parser.add_argument("prompt", nargs="+", help="Edit instruction.")
@@ -287,9 +339,18 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _add_common_image_args(
-    parser: argparse.ArgumentParser, *, include_background: bool = False
-) -> None:
+def _parse_extra_body(value: str) -> dict[str, Any]:
+    try:
+        parsed = json.loads(value)
+        if not isinstance(parsed, dict):
+            raise ValueError("Extension parameters must be a JSON object.")
+        validate_extra_body(parsed)
+        return parsed
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
+def _add_common_image_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("-o", "--out-dir", default="outputs", help="Output directory.")
     parser.add_argument("--prefix", default=None, help="Output filename prefix.")
     parser.add_argument("--n", type=int, default=1, help="Number of images.")
@@ -301,16 +362,14 @@ def _add_common_image_args(
         default=DEFAULT_OUTPUT_FORMAT,
         help="Output format, e.g. png, jpeg, or webp.",
     )
-    if include_background:
-        parser.add_argument(
-            "--background",
-            default=None,
-            help="Generation background, e.g. auto, transparent, or opaque.",
-        )
+    parser.add_argument("--background", default=None, help="Optional background, e.g. auto, transparent, or opaque.")
+    parser.add_argument("--output-compression", type=int, default=None, help="JPEG/WebP compression, 0-100.")
+    parser.add_argument("--response-format", default=None, help="Optional response form, e.g. b64_json or url.")
+    parser.add_argument("--extra-body", type=_parse_extra_body, default=None, help="Additional image parameters as a JSON object.")
     parser.add_argument(
         "--moderation",
         default="none",
-        help="Image moderation strictness, e.g. none, auto, or low.",
+        help="Image moderation, e.g. auto or low. none omits the parameter (service default).",
     )
 
 
@@ -336,6 +395,10 @@ def main() -> int:
             output_format=args.output_format,
             background=args.background,
             moderation=args.moderation,
+            output_compression=args.output_compression,
+            style=args.style,
+            response_format=args.response_format,
+            extra_body=args.extra_body,
         )
     elif args.command == "edit":
         results = client.edit(
@@ -349,6 +412,11 @@ def main() -> int:
             quality=args.quality,
             output_format=args.output_format,
             moderation=args.moderation,
+            background=args.background,
+            output_compression=args.output_compression,
+            input_fidelity=args.input_fidelity,
+            response_format=args.response_format,
+            extra_body=args.extra_body,
         )
     else:
         raise ValueError(f"Unsupported command: {args.command}")

@@ -16,12 +16,13 @@ MANIFEST_PATH = OUTPUTS_DIR / "manifest.json"
 JOBS_PATH = OUTPUTS_DIR / "jobs.json"
 
 DEFAULT_MODELS = ("gpt-image-2", "gpt-image-1", "gpt-image-1-mini")
-SIZES = ("1024x1024", "1024x1536", "1536x1024")
+SIZES = ("auto", "1024x1024", "1024x1536", "1536x1024")
 QUALITIES = ("auto", "low", "medium", "high")
 OUTPUT_FORMATS = ("png", "jpeg", "webp")
 BACKGROUNDS = ("auto", "transparent", "opaque")
-MODERATIONS = ("none", "auto", "low")
+MODERATIONS = ("auto", "low")
 MAX_N = 2
+MAX_PROMPT_LENGTH = 32000
 
 
 @dataclass(frozen=True)
@@ -120,4 +121,8 @@ def get_safe_config() -> dict[str, object]:
         "backgrounds": list(BACKGROUNDS),
         "moderations": list(MODERATIONS),
         "max_n": MAX_N,
+        "max_prompt_length": MAX_PROMPT_LENGTH,
+        "input_fidelities": ["low", "high"],
+        "styles": ["natural", "vivid"],
+        "response_formats": ["b64_json", "url"],
     }

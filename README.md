@@ -2,9 +2,21 @@
 
 [中文说明](README.zh-CN.md)
 
+This repository contains the standalone Vue/FastAPI version of Imagen and its
+Python CLI. The [production Imagen workshop](https://bunnykloud.site/index/workshop/imagen)
+uses the native Svelte/Rust implementation in
+[PersonalStation](https://github.com/klpzj/PersonalStation). See its
+[parameter guide](https://github.com/klpzj/PersonalStation/blob/main/docs/imagen-parameters.md)
+for the deployed version; the feature notes below describe this standalone app.
+
 Small Python wrapper and local WebUI around the OpenAI Image API. It supports
 text-to-image generation, image editing, local file output, persisted task
 state, history deletion, and CLI usage.
+
+All parameter dropdowns accept direct text entry. The WebUI also supports
+background, compression, input fidelity, PNG masks, style, response format,
+timeout, extension JSON, independent drafts, named presets, and full settings
+reuse. See the [upgrade notes](docs/parameter-editing-upgrade.zh-CN.md).
 
 ## Setup
 
@@ -14,6 +26,8 @@ python -m venv .venv
 pip install -r requirements.txt
 $env:OPENAI_API_KEY="sk-your-api-key"
 ```
+
+Requires OpenAI SDK 2.0.0+ and Pillow 10+.
 
 You can also put credentials in `auth.json`:
 
