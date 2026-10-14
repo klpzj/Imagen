@@ -1,5 +1,7 @@
 # PersonalStation 工房集成（历史方案）
 
+2026-10-14：维护入口已统一到 PersonalStation；旧源码、任务元数据和子目录图片已整理为可恢复档案。完整核对见[原库整理记录](https://github.com/klpzj/PersonalStation/blob/main/docs/architecture/imagen-consolidation-20261014.md)。本仓库保留历史实现，后续功能与修复进入主站。
+
 2026-10-13：正式入口 [Imagen 工房](https://bunnykloud.site/index/workshop/imagen)已经采用 PersonalStation 原生 Svelte/Rust 实现，使用共用站点 API。本文件保留旧 iframe/BFF 方案，供维护相应历史版本时参考。当前站点的运行与参数说明以 [PersonalStation 文档](https://github.com/klpzj/PersonalStation/blob/main/docs/imagen-parameters.md)为准；不需要按下文启动独立 Vue/FastAPI 服务或配置旧代理变量。
 
 历史方案通过同源 BFF 把 Imagen 作为独立工具挂在 `/workshop/imagen`。Imagen 拥有自己的 Python API、Vue 状态和 `outputs/`；主站负责入口、路径转发和运行状态提示。以下命令与边界均属于该历史方案。

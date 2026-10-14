@@ -1,6 +1,8 @@
-# WebUI Design Documentation
+# Historical Imagen Documentation
 
-Read these documents in order when implementing the Vue WebUI.
+Active development is maintained in [PersonalStation](https://github.com/klpzj/PersonalStation). See the [consolidation record](https://github.com/klpzj/PersonalStation/blob/main/docs/architecture/imagen-consolidation-20261014.md) and [native parameter guide](https://github.com/klpzj/PersonalStation/blob/main/docs/imagen-parameters.md).
+
+The complete historical [English guide](legacy/README.md) and [Chinese guide](legacy/README.zh-CN.md) remain available for reproducing the standalone version. The documents below describe its preserved Vue/FastAPI implementation.
 
 1. [WebUI module design](webui-module-design.md)
    - Overall architecture, module boundaries, directory plan, and first version
@@ -32,11 +34,11 @@ Read these documents in order when implementing the Vue WebUI.
 
 正式站点使用 [PersonalStation 原生 Svelte/Rust 版本](https://github.com/klpzj/PersonalStation/blob/main/docs/imagen-parameters.md)，入口为 [Imagen 工房](https://bunnykloud.site/index/workshop/imagen)。
 
-Current implementation target:
+Scope of the historical standalone implementation:
 
 - Local WebUI with text generation, image editing, preview, download, history,
   history deletion, failed task display, and refresh-safe job state.
 - Keep canvas mask painting, multi-job queue management, user accounts, and
   production deployment in the backlog.
-- If using parallel Codex workers, follow
-  [Three-Codex work allocation](three-codex-work-allocation.md).
+- The work-allocation document records the original construction process.
+  New implementation and verification belong in PersonalStation.

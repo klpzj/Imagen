@@ -1,181 +1,32 @@
-# GPT Image API wrapper
+# Imagen (historical repository)
 
 [中文说明](README.zh-CN.md)
 
-This repository contains the standalone Vue/FastAPI version of Imagen and its
-Python CLI. The [production Imagen workshop](https://bunnykloud.site/index/workshop/imagen)
-uses the native Svelte/Rust implementation in
-[PersonalStation](https://github.com/klpzj/PersonalStation). See its
-[parameter guide](https://github.com/klpzj/PersonalStation/blob/main/docs/imagen-parameters.md)
-for the deployed version; the feature notes below describe this standalone app.
+Since 2026-10-14, daily use, development, tests and releases of Imagen are maintained in [PersonalStation](https://github.com/klpzj/PersonalStation). This repository preserves the old Vue/FastAPI application, direct Python client and design history.
 
-Small Python wrapper and local WebUI around the OpenAI Image API. It supports
-text-to-image generation, image editing, local file output, persisted task
-state, history deletion, and CLI usage.
+Use the [production Imagen workshop](https://bunnykloud.site/index/workshop/imagen) and its [native parameter guide](https://github.com/klpzj/PersonalStation/blob/main/docs/imagen-parameters.md). The [consolidation record](https://github.com/klpzj/PersonalStation/blob/main/docs/architecture/imagen-consolidation-20261014.md) documents feature coverage, checked callers, runtime dependencies and archived data.
 
-All parameter dropdowns accept direct text entry. The WebUI also supports
-background, compression, input fidelity, PNG masks, style, response format,
-timeout, extension JSON, independent drafts, named presets, and full settings
-reuse. See the [upgrade notes](docs/parameter-editing-upgrade.zh-CN.md).
+## Active implementation
 
-## Setup
+PersonalStation owns the Svelte workbench, Rust API, jobs, image history, media publication, Node CLI and migration tool. Production credentials live outside either repository; data lives in `DATA_DIR/imagen`. The old FastAPI/Vue services and FRP tunnel are unnecessary for that deployment.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-$env:OPENAI_API_KEY="sk-your-api-key"
+From the PersonalStation repository:
+
+```sh
+node scripts/imagen.mjs --help
+node scripts/imagen.mjs generate --quality low -o ./outputs "A simple red apple on a white background"
+node scripts/imagen.mjs edit --image ./input.png "Replace the background with a studio backdrop"
 ```
 
-Requires OpenAI SDK 2.0.0+ and Pillow 10+.
+The CLI defaults to the local Rust API. Add `--api-url https://bunnykloud.site/index` to use the production station. Upstream credentials and connection settings belong to the Rust server.
 
-You can also put credentials in `auth.json`:
+## Preserved materials
 
-```json
-{
-  "API_KEY": "sk-your-api-key"
-}
-```
+- Complete historical [English](docs/legacy/README.md) and [Chinese](docs/legacy/README.zh-CN.md) guides, with commands run from this repository root.
+- [Historical design and verification documents](docs/README.md).
+- `gpt_image_client.py`, the direct Python module/CLI. The native Node CLI uses the station API and does not provide the same Python import interface. No external caller was found in the checked projects or skills.
+- The original MIT `LICENSE` and Git history.
 
-## Generate
+All eight legacy jobs are present in the station. A verified Git bundle, original metadata and one previously omitted nested image are preserved locally under PersonalStation's `data/archives/imagen-20261014`; the old credential file is backed up separately outside repositories. Browser drafts and presets have different storage keys and export formats, so they are not automatically migrated.
 
-```powershell
-python .\gpt_image_client.py generate "A clean product render of a white ceramic mug on a walnut desk"
-```
-
-## Edit
-
-```powershell
-python .\gpt_image_client.py edit --image .\input.png "Replace the background with a bright studio backdrop"
-```
-
-## Use as a module
-
-```python
-from gpt_image_client import GPTImageClient
-
-client = GPTImageClient()
-results = client.generate(
-    "A minimal app icon for an image generation tool",
-    size="1024x1024",
-    quality="auto",
-)
-
-print(results[0].path)
-```
-
-Common options:
-
-- `--model`: image model name, default from `OPENAI_IMAGE_MODEL` or `gpt-image-2`
-- `--size`: image size, for example `1024x1024`
-- `--quality`: `auto`, `low`, `medium`, or `high`
-- `--format`: `png`, `jpeg`, or `webp`
-- `--n`: number of images
-- `-o/--out-dir`: output directory
-
-## WebUI
-
-Install backend dependencies:
-
-```powershell
-pip install -r requirements.txt
-```
-
-Start the backend:
-
-```powershell
-python -m uvicorn backend.app:app --reload --port 18000
-```
-
-Start the frontend:
-
-```powershell
-cd webui
-npm install
-npm run dev
-```
-
-Open:
-
-```text
-http://localhost:5173
-```
-
-Or start the backend, frontend, and optional frpc tunnel in one managed command
-window:
-
-```powershell
-.\start-frp-webui.bat
-```
-
-Stop the managed processes:
-
-```powershell
-.\stop-frp-webui.bat
-```
-
-## FRP tunnel
-
-The WebUI is configured to call `/api` and `/outputs` through the Vite dev
-server, so frpc only needs to expose the frontend port.
-
-Copy the example config and fill in your frps server address and token:
-
-```powershell
-Copy-Item .\frpc.example.toml .\frpc.toml
-```
-
-Start the backend in terminal 1:
-
-```powershell
-python -m uvicorn backend.app:app --reload --port 18000
-```
-
-Start the frontend in terminal 2:
-
-```powershell
-cd webui
-npm run dev
-```
-
-Start frpc in terminal 3:
-
-```powershell
-.\frpc.exe -c .\frpc.toml
-```
-
-Or start backend, frontend, and frpc together in one command window:
-
-```powershell
-.\start-frp-webui.bat
-```
-
-The script uses backend port `18000` to avoid Windows socket permission issues
-that can occur on port `8000`. It writes process metadata and logs under
-`.run/`, prechecks ports `18000` and `5173`, and keeps the backend, frontend,
-and frpc in one lifecycle group.
-
-Stop the managed backend, frontend, and frpc processes:
-
-```powershell
-.\stop-frp-webui.bat
-```
-
-Open:
-
-```text
-http://<frps-server>:15173
-```
-
-## WebUI design docs
-
-- [Docs index](docs/README.md)
-- [WebUI module design](docs/webui-module-design.md)
-- [Backend modules](docs/backend-modules.md)
-- [Frontend modules](docs/frontend-modules.md)
-- [API and data contract](docs/api-and-data-contract.md)
-- [Implementation plan](docs/implementation-plan.md)
-- [Decision log](docs/decision-log.md)
-- [Consistency audit](docs/consistency-audit.md)
-- [Three-Codex work allocation](docs/three-codex-work-allocation.md)
-- [V1 integration verification](docs/v1-integration-verification.md)
+The source tree and GitHub repository remain available as history. New features and fixes belong in PersonalStation.
